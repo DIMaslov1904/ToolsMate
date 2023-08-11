@@ -6,9 +6,11 @@
 local packages = {
     {
         name = 'ToolsMate[Updater].lua',
-		url = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BUpdater%5D.lua'
+        url = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BUpdater%5D.lua'
     }
 }
+
+local script_name = 'ToolsMate[Updater]'
 
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
@@ -35,6 +37,10 @@ function main()
         print('{77DDE7}'..lib.name..'{FFCC00} не установлен!\n {FFCC00}Ошибка загрузки файла')
         succsess = false
     end end
-    if succsess then os.remove(script.this.path) end
+    if succsess then
+        os.remove(script.this.path)
+        sampAddChatMessage(script_name..'{FFB841} установлен!', 0x77DDE7)
+        if not pcall(import, script_name) then reloadScripts() end
+    end
     script.this:unload()
 end
