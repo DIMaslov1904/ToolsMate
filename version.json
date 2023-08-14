@@ -4,7 +4,7 @@
         "descriptions": "Базовый мод Tools Mate. Позволяет настраивать и управлять всеми модами от [ToolsMate]. Так же содержит необходимые утилиты для остальных модов."
     },
     "ToolsMate[AdBlock]": {
-        "version": "1.0.0",
+        "version": "1.1.0",
         "descriptions": "Блокировка вывода в чат указанных сообщений."
     },
     "ToolsMate[GetMarker]": {
