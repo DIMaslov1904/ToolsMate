@@ -2,34 +2,34 @@ script_name('ToolsMate[AdBlock]')
 script_author('DIMaslov1904')
 script_version("1.1.0")
 script_url("https://github.com/DIMaslov1904/ToolsMate")
-script_description('Блокировка вывода в чат указанных сообщений.')
+script_description('Р‘Р»РѕРєРёСЂРѕРІРєР° РІС‹РІРѕРґР° РІ С‡Р°С‚ СѓРєР°Р·Р°РЅРЅС‹С… СЃРѕРѕР±С‰РµРЅРёР№.')
 
 
--- Переменные
-local on = true     -- состояние по умолчанию
-local messages = {  -- при наличии данных фраз - сообщение не выводится в чат
-  'Объявление:',
-  'Редакция News',
+-- РџРµСЂРµРјРµРЅРЅС‹Рµ
+local on = true     -- СЃРѕСЃС‚РѕСЏРЅРёРµ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+local messages = {  -- РїСЂРё РЅР°Р»РёС‡РёРё РґР°РЅРЅС‹С… С„СЂР°Р· - СЃРѕРѕР±С‰РµРЅРёРµ РЅРµ РІС‹РІРѕРґРёС‚СЃСЏ РІ С‡Р°С‚
+  'РћР±СЉСЏРІР»РµРЅРёРµ:',
+  'Р РµРґР°РєС†РёСЏ News',
   '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~',
-  'Задайте ваш вопрос в поддержку сервера - /ask',
-  'Всю интересующую вас информацию вы можете получить на сайте - samp-rp.ru',
-  'Играйте вместе с музыкой от официального радио Samp RolePlay - /music',
+  'Р—Р°РґР°Р№С‚Рµ РІР°С€ РІРѕРїСЂРѕСЃ РІ РїРѕРґРґРµСЂР¶РєСѓ СЃРµСЂРІРµСЂР° - /ask',
+  'Р’СЃСЋ РёРЅС‚РµСЂРµСЃСѓСЋС‰СѓСЋ РІР°СЃ РёРЅС„РѕСЂРјР°С†РёСЋ РІС‹ РјРѕР¶РµС‚Рµ РїРѕР»СѓС‡РёС‚СЊ РЅР° СЃР°Р№С‚Рµ - samp-rp.ru',
+  'РРіСЂР°Р№С‚Рµ РІРјРµСЃС‚Рµ СЃ РјСѓР·С‹РєРѕР№ РѕС‚ РѕС„РёС†РёР°Р»СЊРЅРѕРіРѕ СЂР°РґРёРѕ Samp RolePlay - /music',
 }
 
 
 function main()
-  -- Зависимости
+  -- Р—Р°РІРёСЃРёРјРѕСЃС‚Рё
   if not isSampLoaded() or not isSampfuncsLoaded() then return end
   while not isSampAvailable() do wait(0) end
 
   local isSampev, sampev = xpcall(require, function ()
-      sampAddChatMessage(script.this.name..' выгружен. Библиотеки [SAMP.Lua] не установлены!', 0xD87093)
+      sampAddChatMessage(script.this.name..' РІС‹РіСЂСѓР¶РµРЅ. Р‘РёР±Р»РёРѕС‚РµРєРё [SAMP.Lua] РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅС‹!', 0xD87093)
       thisScript():unload()
     end, 'samp.events')
   if not isSampev then return end
 
 
-  -- Интеграция с ToolsMate
+  -- РРЅС‚РµРіСЂР°С†РёСЏ СЃ ToolsMate
   EXPORTS.TAG_ADDONS = 'ToolsMate'
   EXPORTS.NAME_ADDONS = 'AdBlock'
   EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
@@ -40,7 +40,7 @@ function main()
   local function ads()
     local isNotify, notify = pcall(import, ('ToolsMate'))
     on = not on
-    local message = ('{%s}AdBlock. Блокировка %s!'):format(on and '00FF00' or 'FF0000', on and 'включёна' or 'выключена')
+    local message = ('{%s}AdBlock. Р‘Р»РѕРєРёСЂРѕРІРєР° %s!'):format(on and '00FF00' or 'FF0000', on and 'РІРєР»СЋС‡С‘РЅР°' or 'РІС‹РєР»СЋС‡РµРЅР°')
     if isNotify then notify.addNotify( message, 5)
     else sampAddChatMessage(message, 0xFF0000) end
   end

@@ -1,6 +1,6 @@
 --[[
-    Библиотеки от которых зависит ваш скрипт, пакеты скрипта и т.д. в порядке зависимости
-    От более глобавльных до вашего скрипта
+    Р‘РёР±Р»РёРѕС‚РµРєРё РѕС‚ РєРѕС‚РѕСЂС‹С… Р·Р°РІРёСЃРёС‚ РІР°С€ СЃРєСЂРёРїС‚, РїР°РєРµС‚С‹ СЃРєСЂРёРїС‚Р° Рё С‚.Рґ. РІ РїРѕСЂСЏРґРєРµ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё
+    РћС‚ Р±РѕР»РµРµ РіР»РѕР±Р°РІР»СЊРЅС‹С… РґРѕ РІР°С€РµРіРѕ СЃРєСЂРёРїС‚Р°
 --]]
 
 local packages = {
@@ -21,7 +21,7 @@ function main()
             fullPath = fullPath..part..'/'
             local ok, err, code = os.rename(fullPath, fullPath)
             if code == 2 then createDirectory(fullPath)
-            elseif not ok then print('{77DDE7}'..path..'{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: '..err) return false end
+            elseif not ok then print('{77DDE7}'..path..'{FFCC00} РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ!\n {FFCC00}РћС€РёР±РєР° СЃРѕР·РґР°РЅРёРµ РєР°С‚Р°Р»РѕРіР°: '..err) return false end
         end return true
     end
     local function downloadPackage(lib_url, lib_name)
@@ -34,12 +34,12 @@ function main()
         while loading do wait(1000) end return end_download
     end
     for _, lib in pairs(packages) do if not pcall(import, lib.name) and not downloadPackage(lib.url, lib.name) then
-        print('{77DDE7}'..lib.name..'{FFCC00} не установлен!\n {FFCC00}Ошибка загрузки файла')
+        print('{77DDE7}'..lib.name..'{FFCC00} РЅРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ!\n {FFCC00}РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё С„Р°Р№Р»Р°')
         succsess = false
     end end
     if succsess then
         os.remove(script.this.path)
-        sampAddChatMessage(script_name..'{FFB841} установлен!', 0x77DDE7)
+        sampAddChatMessage(script_name..'{FFB841} СѓСЃС‚Р°РЅРѕРІР»РµРЅ!', 0x77DDE7)
         if not pcall(import, script_name) then reloadScripts() end
     end
     script.this:unload()
