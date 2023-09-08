@@ -1,24 +1,24 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.0")
+script_version("0.9.1")
 script_url("https://t.me/ToolsMate")
-script_description('РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ СЃРєСЂРёРїС‚РѕРІ.')
+script_description('Автообновление скриптов.')
 
 
--- Р—Р°РІРёСЃРёРјРѕСЃС‚Рё
+-- Зависимости
 local dlstatus = require('moonloader').download_status
 
 
--- РЎРѕРєСЂР°С‰РµРЅРёСЏ
+-- Сокращения
 local f = string.format
 local c = table.concat
-local b = function(...) -- РљРѕРЅРєР°РіРёРЅР°С†РёСЏ СЃС‚СЂРѕРє
+local b = function(...) -- Конкагинация строк
     local arg = { ... }
     local r = {}
     for _, v in pairs(arg) do r[#r + 1] = tostring(v) end
     return c(r, "")
 end
-local def = function(fn, ...) -- РЎРѕР·РґР°РЅРёРµ С„СѓРЅРєС†РёРё СЃ РѕРїСЂ. Р°СЂРіСѓРјРµРЅС‚Р°РјРё, Р±РµР· РµС‘ РІС‹Р·РѕРІР°
+local def = function(fn, ...) -- Создание функции с опр. аргументами, без её вызова
     local arg = { ... }
     return function(...)
         local new_arg = { ... }
@@ -37,17 +37,17 @@ local flowDef = function(fn, ...)
 end
 
 
--- РџРµСЂРµРјРµРЅРЅС‹Рµ
+-- Переменные
 local comamnd = 'updater'
-local config_file_name = c({ getWorkingDirectory(), comamnd, b(script.this.name, '.json') }, '/')
-local update_path = b(getWorkingDirectory(), '/', comamnd, '/')
-local is_updates = false -- РµСЃС‚СЊ РµСЃС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ
+local config_file_name = c({ getWorkingDirectory(), comamnd, b(script.this.name, '.json') }, '\\')
+local update_path = b(getWorkingDirectory(), '\\', comamnd, '\\')
+local is_updates = false -- есть есть обновления
 local state = {
-    autoCheck = true,    -- РђРІС‚Рѕ РїСЂРѕРІРµСЂРєР°
-    autoDownload = true, -- РђРІС‚Рѕ РѕР±РЅРѕРІР»РµРЅРёРµ
-    unload = false,      -- Р’С‹РіСЂСѓР¶Р°С‚СЊСЃСЏ РїРѕСЃР»Рµ РїСЂРѕРІРµСЂРєРё
-    libs = {},           -- РЎРїРёСЃРѕРє РІСЃРµС… СЃРєСЂРёРїС‚РѕРІ
-    urlsCheck = {}       -- РЎСЃС‹Р»РєРё РЅР° РїСЂРѕРІРµСЂРєСѓ РѕР±РЅРѕРІР»РµРЅРёР№
+    autoCheck = true,    -- Авто проверка
+    autoDownload = true, -- Авто обновление
+    unload = false,      -- Выгружаться после проверки
+    libs = {},           -- Список всех скриптов
+    urlsCheck = {}       -- Ссылки на проверку обновлений
 }
 local color = {
     successes = 0xCED23A,
@@ -55,48 +55,59 @@ local color = {
     errors    = 0xD87093,
 }
 local MESSAGES = {
-    hello_message          = f('%s РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ РёСЃРїРѕР»СЊР·СѓР№С‚Рµ РєРѕРјР°РЅРґСѓ /%s',
+    hello_message          = f('%s для управления используйте команду /%s',
         script.this.name, comamnd),
-    on                     = f('{%06X}РІРєР»СЋС‡РµРЅРѕ', color.successes),
-    off                    = f('{%06X}РІС‹РєР»СЋС‡РµРЅРѕ', color.errors),
-    analysis               = 'РђРЅР°Р»РёР· СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅС‹С… СЃРєСЂРёРїС‚РѕРІ...',
-    checking_updates       = 'РРґС‘С‚ РїСЂРѕРІРѕРІРµСЂРєР° РѕР±РЅРѕРІР»РµРЅРёР№...',
-    no_update_url          = 'РЅРµ СѓРґР°Р»РѕСЃСЊ РѕР±РЅРѕРІРёС‚СЊ. Р Р°Р·СЂР°Р±РѕС‚С‡РёРє РЅРµ РґРѕР±Р°РІРёР» СЃСЃС‹Р»РєСѓ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ',
-    downloading_updates    = 'РРґС‘С‚ СЃРєР°С‡РёРІР°РЅРёРµ РѕР±РЅРѕРІР»РµРЅРёР№...',
-    download_completed     = '- Р—Р°РіСЂСѓР·РєР° Р·Р°РІРµСЂС€РµРЅР°',
-    download_error         = 'РѕС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё',
-    new_version            = '- РІС‹С€Р»Р° РЅРѕРІР°СЏ РІРµСЂСЃРёСЏ:',
-    current_version        = '| РўРµРєСѓС‰Р°СЏ:',
-    verification_completed = 'РџСЂРѕРІРµСЂРєР° Р·Р°РІРµСЂС€РµРЅР°!',
-    no_updates             = 'Р’СЃРµ РґРѕСЃС‚СѓРїРЅС‹Рµ СЃРєСЂРёРїС‚С‹ РѕР±РЅРѕРІР»РµРЅС‹!',
-    autoCheck              = 'Р°РІС‚РѕРїСЂРѕРІРµСЂРєР° РѕР±РЅРѕРІР»РµРЅРёР№',
-    autoDownload           = 'Р°РІС‚РѕР·Р°РіСЂСѓР·РєР° РѕР±РЅРѕРІР»РµРЅРёР№',
-    unload                 = 'РІС‹РіСЂСѓР·РєР°',
-    handler_check          = 'РїСЂРѕРІРµСЂРёС‚СЊ РѕР±РЅРѕРІР»РµРЅРёСЏ (РѕРїС†. РёРјСЏ СЃРєСЂРёРїС‚Р°)',
-    handler_get            = 'РѕР±РЅРѕРІРёС‚СЊ СЃРєСЂРёРїС‚ (РЅР°Р·РІР°РЅРёРµ РјРѕР¶РЅРѕ РїРёСЃР°С‚СЊ С‡РµСЂРµР· РїСЂРѕР±РµР»)',
-    handler_autoCheck      = 'РїРµСЂРµРєР»СЋС‡РёС‚СЊ Р°РІС‚РѕРїСЂРѕРІРµСЂРєСѓ РѕР±РЅРѕРІР»РµРЅРёР№ (РІРєР»/РІС‹РєР»)',
-    handler_autoDownload   = 'РїРµСЂРµРєР»СЋС‡РёС‚СЊ Р°РІС‚РѕР·Р°РіСЂСѓР·РєСѓ РѕР±РЅРѕРІР»РµРЅРёР№ (РІРєР»/РІС‹РєР»)',
-    handler_unload         = 'РїРµСЂРµРєР»СЋС‡РёС‚СЊ РІС‹РіСЂСѓР·РєСѓ СЃРєСЂРёРїС‚Р°, РїРѕСЃР»Рµ РѕР±РЅРѕРІР»РµРЅРёСЏ (РІРєР»/РІС‹РєР»)',
-    catalog_created        = 'РљР°С‚Р°Р»РѕРі СЃ РІРµСЂСЃРёСЏРјРё СЃРѕР·РґР°РЅ:',
-    no_script_name         = 'РЅРµ РїРµСЂРµРґР°РЅРѕ РЅР°Р·РІР°РЅРёРµ СЃРєСЂРёРїС‚Р°',
-    no_search              = '- РЅРµ РЅР°Р№РґРµРЅ',
-    no_auto_update         = '- РґР°РЅРЅС‹Р№ СЃРєСЂРёРїС‚ С‚СЂРµР±СѓРµС‚ РѕС‚РґРµР»СЊРЅРѕРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ РІСЂСѓС‡СѓРЅСЋ',
-    for_update             = f('Р”Р»СЏ РѕР±РґРЅРѕРІР»РµРЅРёСЏ РІРІРµРґРёС‚Рµ /%s get ', comamnd),
+    on                     = f('{%06X}включено', color.successes),
+    off                    = f('{%06X}выключено', color.errors),
+    analysis               = 'Анализ установленных скриптов...',
+    checking_updates       = 'Идёт прововерка обновлений...',
+    no_update_url          = 'не удалось обновить. Разработчик не добавил ссылку для обновления',
+    downloading_updates    = 'Идёт скачивание обновлений...',
+    download_completed     = '- Загрузка завершена',
+    download_error         = 'ошибка загрузки',
+    new_version            = '- вышла новая версия:',
+    current_version        = '| Текущая:',
+    verification_completed = 'Проверка завершена!',
+    no_updates             = 'Все доступные скрипты обновлены!',
+    autoCheck              = 'автопроверка обновлений',
+    autoDownload           = 'автозагрузка обновлений',
+    unload                 = 'выгрузка',
+    handler_check          = 'проверить обновления (опц. имя скрипта)',
+    handler_get            = 'обновить скрипт (название можно писать через пробел)',
+    handler_autoCheck      = 'переключить автопроверку обновлений (вкл/выкл)',
+    handler_autoDownload   = 'переключить автозагрузку обновлений (вкл/выкл)',
+    handler_unload         = 'переключить выгрузку скрипта, после обновления (вкл/выкл)',
+    catalog_created        = 'Каталог с версиями создан:',
+    no_script_name         = 'не передано название скрипта',
+    no_search              = '- не найден',
+    no_auto_update         = '- данный скрипт требует отдельного обновления вручуню',
+    for_update             = f('Для обдновления введите /%s get ', comamnd),
     update_instructions    = {
-        'РђРІС‚РѕРѕР±РЅРѕРІР»РµРЅРёРµ СЃРєСЂРёРїС‚РѕРІ РѕС‚РєР»СЋС‡РµРЅРѕ',
-        'Р”Р»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ РёСЃРїРѕР»СЊР·СѓР№С‚Рµ РєРѕРјР°РЅРґСѓ:',
+        'Автообновление скриптов отключено',
+        'Для обновления используйте команду:',
         f('/%s get script_name', comamnd)
     }
 }
 
 
--- Р¤СѓРЅРєС†РёРё
+-- Функции
 local function onoff(v)
     return v and MESSAGES.on or MESSAGES.off
 end
 
--- Р Р°Р±РѕС‚Р° СЃ json
+local function checkingPath(path)
+    local fullPath = getWorkingDirectory() .. '\\'
+    for part in string.gmatch(path:sub(path:find("moonloader")+10,#path), "([^\\]+)\\") do
+        fullPath = fullPath..part..'\\'
+        local ok, err, code = os.rename(fullPath, fullPath)
+        if code == 2 then createDirectory(fullPath)
+        elseif not ok then print('{77DDE7}'..path..'{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: '..err) return false end
+    end return true
+end
+
+-- Работа с json
 local function json(directory)
+    checkingPath(directory)
     local class = {}
     function class:Save(tbl)
         if tbl then
@@ -120,7 +131,7 @@ local function json(directory)
     return class
 end
 
--- РЎРѕС…СЂР°РЅРµРЅРёРµ РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+-- Сохранение конфигурации
 local function save_state()
     local save_state = {
         autoCheck = state.autoCheck,
@@ -130,7 +141,7 @@ local function save_state()
     json(config_file_name):Save(save_state)
 end
 
--- Р—Р°РіСЂСѓР·РєР° РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+-- Загрузка конфигурации
 local function load_state()
     local save_state = {
         autoCheck = state.autoCheck,
@@ -140,7 +151,7 @@ local function load_state()
     state = json(config_file_name):Load(save_state)
 end
 
--- Р”РѕР±Р°РІР»РµРЅРёРµ СѓСЃС‚Р°РЅРѕРІР»РµРЅРЅС‹С… СЃРєСЂРёРїС‚РѕРІ
+-- Добавление установленных скриптов
 local function browseScripts()
     state.libs = {}
     state.urlsCheck = {}
@@ -166,7 +177,7 @@ local function browseScripts()
     end
 end
 
--- РћР±РЅРѕРІР»РµРЅРёРµ СЃРєСЂРёРїС‚РѕРІ
+-- Обновление скриптов
 local flowGet = lua_thread.create_suspended(function(name)
     if not name then
         sampAddChatMessage(c({ script.this.name, MESSAGES.no_script_name }, ' '), color.errors)
@@ -199,6 +210,10 @@ local flowGet = lua_thread.create_suspended(function(name)
     print(MESSAGES.downloading_updates)
     local loading, end_download = true, false
 
+    select_script:pause()
+
+    wait(1000)
+
     downloadUrlToFile(url, directory, function(id, status)
         if status == 6 then end_download = true end
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
@@ -213,7 +228,7 @@ local flowGet = lua_thread.create_suspended(function(name)
     if not end_download then sampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors) end
 end)
 
--- РЎСЂР°РІРЅРµРЅРёРµ С‚РµРєСЃС‚РѕРІС‹С… РІРµСЂСЃРёР№
+-- Сравнение текстовых версий
 local function compareVersion(current, new)
     local function parser(ver)
         local numbers = {}
@@ -230,7 +245,7 @@ local function compareVersion(current, new)
     return parser(new) > parser(current)
 end
 
--- РџСЂРѕРІРµСЂРєР° РІРµСЂСЃРёР№
+-- Проверка версий
 local compareVersions = lua_thread.create_suspended(function(directory)
     local versions_json = json(directory):Load({})
 
@@ -251,7 +266,7 @@ local compareVersions = lua_thread.create_suspended(function(directory)
     end
 end)
 
--- Р—Р°РіСЂСѓР·РєР° СЃРІРµСЂС‰РёРєРѕРІ РІРµСЂСЃРёР№
+-- Загрузка сверщиков версий
 local flowRequestCheck = lua_thread.create_suspended(function(name, url)
     local directory = b(update_path, name, '.json')
     local loading, end_download = true, false
@@ -260,18 +275,21 @@ local flowRequestCheck = lua_thread.create_suspended(function(name, url)
         if status == 6 then end_download = true end
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
             print(c({ directory, MESSAGES.download_completed }, ' '))
-            compareVersions:run(directory)
-            while compareVersions:status() ~= 'dead' do wait(1000) end
             loading = false
         end
     end)
     while loading do wait(500) end
+
+    compareVersions:run(directory)
+    while compareVersions:status() ~= 'dead' do wait(1000) end
+
+
     if not end_download then
         sampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors)
     end
 end)
 
--- РџСЂРѕРІРµСЂРєР° РѕР±РЅРѕРІР»РµРЅРёР№
+-- Проверка обновлений
 local function check(arg)
     local lib_name = type(arg) == "string" and arg or false
     local show_message = arg == 1
@@ -309,14 +327,14 @@ local function check(arg)
     end)
 end
 
--- РР·РјРµРЅРµРЅРёРµ РєРѕРЅС„РёРіСѓСЂР°С†РёРё
+-- Изменение конфигурации
 local function changeState(parameter)
     state[parameter] = not state[parameter]
     save_state()
     sampAddChatMessage(c({ script.this.name, MESSAGES[parameter], onoff(state[parameter]) }, ' '), color.warning)
 end
 
--- РћР±СЂР°Р±РѕС‚С‡РёРє РєРѕРјР°РЅРґ
+-- Обработчик команд
 local function handler(arg)
     local fn, lib
     for str in arg:gmatch("([^%s]+)") do
@@ -362,7 +380,7 @@ local function handler(arg)
     end
 end
 
--- РџРµСЂРІС‹Рµ Р·Р°РґР°С‡РєРё
+-- Первые задачки
 local function run()
     load_state()
     browseScripts()
@@ -374,10 +392,10 @@ local function run()
 end
 
 
--- Р‘Р°Р·Р°
+-- База
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
-    EXPORTS.NAME_ADDONS = 'РћР±РЅРѕРІР»РµРЅРёРµ'
+    EXPORTS.NAME_ADDONS = 'Обновление'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
     EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BUpdater%5D.lua'
     EXPORTS.NO_AUTO_UPDATE = true
@@ -389,7 +407,7 @@ function main()
     sampRegisterChatCommand(comamnd, handler)
 
     if state.autoCheck then
-        wait(120000) -- Р¶РґС‘С‚ 2 РјРёРЅСѓС‚С‹ РїРµСЂРµРґ Р·Р°РїСѓСЃРєРѕРј
+        wait(120000) -- ждёт 2 минуты перед запуском
         check()
     end
     wait(-1)

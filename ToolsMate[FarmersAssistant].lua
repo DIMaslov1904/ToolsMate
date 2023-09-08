@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.2.0")
+script_version("0.1.0")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -39,27 +39,6 @@ if #not_found > 0 then
     thisScript():unload()
     return
 end
-
-
-local function getUpdate()
-    local list = {
-        {
-            name = script.this.name,
-            url_script =
-            'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua',
-            urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-            version = script.this.version,
-            path_script = script.this.path,
-            reload = Def(function() thisScript():reload() end)
-        }
-    }
-    table.insert(list, 1, tmLib.setting)
-    table.insert(list, 2, ExpansionLua)
-
-    tmLib.checkUpdateList:run(list)
-end
-
-
 
 
 require 'moonloader'
@@ -915,23 +894,19 @@ local function checkingStatus()
     end
 end
 
-local function timeGetUpdate()
-    while true do
-        print('Проверка обновления')
-        getUpdate()
-        wait(60000)
-    end
-end
 
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(0) end
 
+    EXPORTS.TAG_ADDONS = 'ToolsMate'
+    EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
+    EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua'
+
     loadState()
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
-    lua_thread.create(timeGetUpdate)
 
 
 
