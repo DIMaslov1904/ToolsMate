@@ -45,15 +45,16 @@ local function getUpdate()
     local list = {
         {
             name = script.this.name,
-            url_script = '',
-            urp_version = '',
+            url_script =
+            'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua',
+            urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
             version = script.this.version,
             path_script = script.this.path,
             reload = Def(function() thisScript():reload() end)
         }
     }
-    table.insert(list, tmLib.setting)
-    table.insert(list, ExpansionLua)
+    table.insert(list, 1, tmLib.setting)
+    table.insert(list, 2, ExpansionLua)
 
     tmLib.checkUpdateList:run(list)
 end
@@ -916,6 +917,7 @@ end
 
 local function timeGetUpdate()
     while true do
+        print('Проверка обновления')
         getUpdate()
         wait(60000)
     end

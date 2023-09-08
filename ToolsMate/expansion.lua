@@ -1,7 +1,7 @@
 ExpansionLua = {
   name = 'tm-expansion',
-  url_script = '',
-  urp_version = '',
+  url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/expansion.lua',
+  urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
   version = "0.1.0",
   path_script = getWorkingDirectory() .. '\\ToolsMate\\expansion.lua'
 }
