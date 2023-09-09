@@ -461,14 +461,9 @@ function main()
 
     wait(2000)
     check()
-    wait(-1)
 end
 
 return {
     checkUpdateList = checkUpdateList,
     download = download,
-    check = function (arg)
-        run()
-        check(arg)
-    end
 }

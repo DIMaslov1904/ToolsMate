@@ -922,35 +922,29 @@ local function checkingStatus()
     end
 end
 
-local function timeGetUpdate()
-    wait(2000)
-    if isUpdater then
-        while true do
-            local list = {}
-            table.insert(list, tmLib.setting)
-            table.insert(list, ExpansionLua)
-            updater.checkUpdateList:run(list)
-            while updater.checkUpdateList:status() ~= 'dead' do wait(1000) end
-            wait(1000 * 60 * 60)
-            updater.check(script.this.name)
-        end
-    end
+local function getUpdate()
+    if not isUpdater then return end
+    local list = {}
+    table.insert(list, tmLib.setting)
+    table.insert(list, ExpansionLua)
+    -- updater.checkUpdateList:run(list)
 end
 
 function main()
-    if not isSampLoaded() or not isSampfuncsLoaded() then return end
-    while not isSampAvailable() do wait(0) end
-
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
     EXPORTS.URL_GET_UPDATE =
     'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua'
 
+    if not isSampLoaded() or not isSampfuncsLoaded() then return end
+    while not isSampAvailable() do wait(0) end
+
+    getUpdate()
+
     loadState()
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
-    lua_thread.create(timeGetUpdate)
 
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
