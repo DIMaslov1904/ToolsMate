@@ -8,8 +8,6 @@ script_description [[
 ]]
 
 
-
-
 local localization = {
     notifications = {
         speedBooster = 'До окончания буста скорости',
@@ -21,7 +19,13 @@ local localization = {
 }
 
 
-
+local zone = {
+    priceFruit = {-- позиция цен на фрукты
+        x = 969.73431396484,
+        y = 2160.6918945313,
+        z = 10.820300102234
+    }
+}
 
 
 -- Зависимости
@@ -124,7 +128,8 @@ local default_state = {
         countWarehouse = 5000,
         countSeed = 2500,
         countHarvest = 3500
-    }
+    },
+    fruits = {}
 }
 
 local state = table.copy(default_state)
@@ -454,6 +459,7 @@ local function updateFinfo(text)
         else
             for _, item in pairs(param_list) do
                 if value:find(item.title) then
+                    print(value:match(item.reg))
                     state.hangar[item.key] = tonumber(value:match(item.reg))
                     break
                 end
@@ -930,6 +936,7 @@ local function getUpdate()
     -- updater.checkUpdateList:run(list)
 end
 
+
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
@@ -1005,6 +1012,9 @@ function sampev.onServerMessage(_, text)
     -- [Ферма]{FFFFFF} Stephen_Thompson выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора урожая на 2 часа ))
 
 
+    -- [Ферма]{FFFFFF} Irene_Nishimiya завершила скашивание травы для хлева
+
+
     if string.find(text, '[Ферма]{FFFFFF} Зерновоз', 1, true) then
         local count, price = text:match('%s(%d+)%s.+%sза (%d+) вирт')
         if string.find(text, 'продукции за', 1, true) then
@@ -1015,17 +1025,17 @@ function sampev.onServerMessage(_, text)
             state.hangar.balance = state.hangar.balance - price
         end
         saveState()
-    elseif string.find(text, 'разгрузил в амбар фермы', 1, true) then
-        local count = text:match('разгрузил в амбар фермы (%d+) единиц урожая из машины')
+    elseif string.find(text, 'в амбар фермы', 1, true) then
+        local count = text:match('в амбар фермы (%d+) единиц урожая из машины')
         state.hangar.harvest = state.hangar.harvest + count
         state.hangar.seed = state.hangar.seed - count
         saveState()
-    elseif string.find(text, 'засеял на поле', 1, true) then
-        local count = text:match('засеял на поле (%d+) семян')
+    elseif string.find(text, 'на поле', 1, true) then
+        local count = text:match('на поле (%d+) семян')
         state.hangar.warehouse = state.hangar.warehouse - count
         state.hangar.seed = state.hangar.seed + count
         saveState()
-    elseif string.find(text, 'выполнил скашивание комбайном', 1, true) then
+    elseif string.find(text, 'скашивание комбайном', 1, true) then
         state.hangar.speedBooster = os.time() + 2 * 3600
     end
 end
