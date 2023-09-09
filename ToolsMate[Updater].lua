@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.1")
+script_version("0.9.2")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -40,7 +40,7 @@ end
 -- Переменные
 local comamnd = 'updater'
 local config_file_name = c({ getWorkingDirectory(), comamnd, b(script.this.name, '.json') }, '\\')
-local update_path = b(getWorkingDirectory(), '\\', comamnd, '\\')
+local update_path = getWorkingDirectory() .. '\\ToolsMate\\Updater\\'
 local is_updates = false -- есть есть обновления
 local state = {
     autoCheck = true,    -- Авто проверка
@@ -55,8 +55,6 @@ local color = {
     errors    = 0xD87093,
 }
 local MESSAGES = {
-    hello_message          = f('%s для управления используйте команду /%s',
-        script.this.name, comamnd),
     on                     = f('{%06X}включено', color.successes),
     off                    = f('{%06X}выключено', color.errors),
     analysis               = 'Анализ установленных скриптов...',
@@ -69,15 +67,12 @@ local MESSAGES = {
     current_version        = '| Текущая:',
     verification_completed = 'Проверка завершена!',
     no_updates             = 'Все доступные скрипты обновлены!',
-    autoCheck              = 'автопроверка обновлений',
-    autoDownload           = 'автозагрузка обновлений',
     unload                 = 'выгрузка',
     handler_check          = 'проверить обновления (опц. имя скрипта)',
     handler_get            = 'обновить скрипт (название можно писать через пробел)',
     handler_autoCheck      = 'переключить автопроверку обновлений (вкл/выкл)',
     handler_autoDownload   = 'переключить автозагрузку обновлений (вкл/выкл)',
     handler_unload         = 'переключить выгрузку скрипта, после обновления (вкл/выкл)',
-    catalog_created        = 'Каталог с версиями создан:',
     no_script_name         = 'не передано название скрипта',
     no_search              = '- не найден',
     no_auto_update         = '- данный скрипт требует отдельного обновления вручуню',
@@ -97,12 +92,18 @@ end
 
 local function checkingPath(path)
     local fullPath = getWorkingDirectory() .. '\\'
-    for part in string.gmatch(path:sub(path:find("moonloader")+10,#path), "([^\\]+)\\") do
-        fullPath = fullPath..part..'\\'
+    for part in string.gmatch(path:sub(path:find("moonloader") + 10, #path), "([^\\]+)\\") do
+        fullPath = fullPath .. part .. '\\'
         local ok, err, code = os.rename(fullPath, fullPath)
-        if code == 2 then createDirectory(fullPath)
-        elseif not ok then print('{77DDE7}'..path..'{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: '..err) return false end
-    end return true
+        if code == 2 then
+            createDirectory(fullPath)
+        elseif not ok then
+            print('{77DDE7}' .. path .. '{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: ' ..
+            err)
+            return false
+        end
+    end
+    return true
 end
 
 -- Работа с json
@@ -210,7 +211,7 @@ local flowGet = lua_thread.create_suspended(function(name)
     print(MESSAGES.downloading_updates)
     local loading, end_download = true, false
 
-    select_script:pause()
+    if select_script then select_script:pause() end
 
     wait(1000)
 
@@ -219,7 +220,7 @@ local flowGet = lua_thread.create_suspended(function(name)
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
             print(c({ directory, MESSAGES.download_completed }, ' '))
             sampAddChatMessage(c({ script.this.name, name, MESSAGES.download_completed }, ' '), color.warning)
-            select_script:reload()
+            if select_script then select_script:reload() end
             loading = false
         end
     end)
@@ -238,7 +239,7 @@ local function compareVersion(current, new)
             count = count + 1
             numbers[count] = tonumber(num)
         end
-        for i=count  , 1, -1 do result = result + (numbers[i] * 1000^(count-i)) end
+        for i = count, 1, -1 do result = result + (numbers[i] * 1000 ^ (count - i)) end
         return result
     end
 
@@ -252,7 +253,8 @@ local compareVersions = lua_thread.create_suspended(function(directory)
     for lib_name, val in pairs(versions_json) do
         for _, lib in pairs(state.libs) do
             if lib.name == lib_name and compareVersion(lib.version, val.version) then
-                local text_message = c({ lib_name, MESSAGES.new_version, val.version, MESSAGES.current_version, lib.version }, ' ')
+                local text_message = c(
+                { lib_name, MESSAGES.new_version, val.version, MESSAGES.current_version, lib.version }, ' ')
                 print(text_message)
                 is_updates = true
                 if state.autoDownload then
@@ -295,24 +297,28 @@ local function check(arg)
     local show_message = arg == 1
     local lib
     for _, v in pairs(state.libs) do if v.name == lib_name then lib = v end end
-    lua_thread.create(function ()
+    lua_thread.create(function()
         print(MESSAGES.checking_updates)
         if show_message then sampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color.warning) end
 
-        for name, url in pairs(state.urlsCheck) do
-            if not lib_name or name == lib_name then
-                flowRequestCheck:run(name, url)
-                while flowRequestCheck:status() ~= 'dead' do wait(1000) end
-            elseif lib then
-                flowRequestCheck:run(lib.name, lib.urlCheckUpdate)
-                while flowRequestCheck:status() ~= 'dead' do wait(1000) end
+        if lib then
+            flowRequestCheck:run(lib.name, lib.urlCheckUpdate)
+            while flowRequestCheck:status() ~= 'dead' do wait(1000) end
+        else
+            for name, url in pairs(state.urlsCheck) do
+                if not lib_name or name == lib_name then
+                    flowRequestCheck:run(name, url)
+                    while flowRequestCheck:status() ~= 'dead' do wait(1000) end
+                end
             end
         end
 
-        if not lib and lib_name then sampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '), color.errors) end
+        if not lib and lib_name then sampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '),
+                color.errors) end
 
         print(MESSAGES.verification_completed)
-        if show_message then sampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '), color.warning) end
+        if show_message then sampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
+                color.warning) end
 
         if is_updates then
             if state.autoDownload then
@@ -338,9 +344,13 @@ end
 local function handler(arg)
     local fn, lib
     for str in arg:gmatch("([^%s]+)") do
-        if not fn then fn = str
-        elseif not lib then lib = str
-        else  lib = b(lib, ' ', str) end
+        if not fn then
+            fn = str
+        elseif not lib then
+            lib = str
+        else
+            lib = b(lib, ' ', str)
+        end
     end
 
     local handlers = {
@@ -384,12 +394,49 @@ end
 local function run()
     load_state()
     browseScripts()
-    if not os.rename(update_path, update_path) and createDirectory(update_path) then
-        print(c({ MESSAGES.catalog_created, update_path }, '\n'))
-    end
-    sampAddChatMessage(c({script.this.name, MESSAGES.autoCheck, onoff(state.autoCheck), f('{%06X}|', color.warning), MESSAGES.autoDownload, onoff(state.autoDownload) }, ' '), color.warning)
-    sampAddChatMessage(MESSAGES.hello_message, color.warning)
+    checkingPath(update_path)
 end
+
+--Русныя проверка дополнительных файлов (checkUpdateList)
+local checkUpdateList = lua_thread.create_suspended(function(list)
+    checkingPath(update_path)
+
+    for _, item in pairs(list) do
+        table.insert(state.libs, {
+            name = item.name,
+            version = item.version,
+            path = item.path_script,
+            urlCheckUpdate = item.urp_version or nil,
+            urlGetUpdate = item.url_script or nil,
+            noAutoUpdate = nil,
+            tag = nil,
+            script = nil
+        })
+
+        state.urlsCheck[item.name] = item.urp_version
+        wait(1000)
+        check(item.name)
+        wait(5000)
+    end
+end)
+
+--Ручное скачивание файла
+local download = lua_thread.create_suspended(function(item)
+    checkingPath(update_path)
+    checkingPath(item.path_script)
+
+    table.insert(state.libs, {
+        name = item.name,
+        path = item.path_script,
+        urlGetUpdate = item.url_script or nil,
+        noAutoUpdate = nil,
+        tag = nil,
+        script = nil
+    })
+
+    flowGet:run(item.name)
+    while flowGet:status() ~= 'dead' do wait(1000) end
+end)
 
 
 -- База
@@ -406,9 +453,16 @@ function main()
 
     sampRegisterChatCommand(comamnd, handler)
 
-    if state.autoCheck then
-        wait(120000) -- ждёт 2 минуты перед запуском
-        check()
-    end
+    wait(2000)
+    check()
     wait(-1)
 end
+
+return {
+    checkUpdateList = checkUpdateList,
+    download = download,
+    check = function (arg)
+        run()
+        check(arg)
+    end
+}

@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.1.0")
+script_version("0.3.0")
 script_url("https://t.me/ToolsMate")
 script_description [[
     ¬ основном бухгалтерска€ функциональность.
@@ -28,9 +28,36 @@ local localization = {
 local not_found = {}
 local isSampev, sampev = xpcall(require, function() table.insert(not_found, 'SAMP.Lua') end, 'samp.events')
 local isImgui, imgui = xpcall(require, function() table.insert(not_found, 'MimGui') end, 'mimgui')
-local isTMLib, tmLib = xpcall(require, function() table.insert(not_found, 'ToolsMate_lib') end, 'ToolsMate.lib')
+local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
+local isTMLib, tmLib = xpcall(require, function()
+    table.insert(not_found, 'ToolsMate_lib')
+    lua_thread.create(function()
+        if isUpdater then
+            updater.download:run({
+                name = 'tm-lib',
+                path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
+                url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
+            })
+            while updater.download:status() ~= 'dead' do wait(1000) end
+            thisScript():reload()
+        end
+    end)
+end, 'ToolsMate.lib')
 
-xpcall(require, function() table.insert(not_found, 'ToolsMate_expansion') end, 'ToolsMate.expansion')
+xpcall(require, function()
+    table.insert(not_found, 'ToolsMate_expansion')
+    lua_thread.create(function()
+        if isUpdater then
+            updater.download:run({
+                name = 'tm-expansion',
+                path_script = getWorkingDirectory() .. '\\ToolsMate\\expansion.lua',
+                url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/expansion.lua',
+            })
+            while updater.download:status() ~= 'dead' do wait(1000) end
+            thisScript():reload()
+        end
+    end)
+end, 'ToolsMate.expansion')
 
 if #not_found > 0 then
     sampAddChatMessage(
@@ -402,11 +429,11 @@ local function updateFinfo(text)
         elseif value:find('скорости сбора урожа€') then
             local remaineSpeedBooster = tmLib.remainedtime(state.hangar.speedBooster)
             local hour                = tonumber(value:match('Ч ћножитель х2 к скорости сбора урожа€:%s+(%d+) час') or
-            0) * 60 * 60
+                0) * 60 * 60
             local min                 = tonumber(value:match('Ч ћножитель х2 к скорости сбора урожа€:%s+(%d+) мин') or
-            0) * 60
+                0) * 60
             local sec                 = tonumber(value:match('Ч ћножитель х2 к скорости сбора урожа€:%s+(%d+) сек') or
-            0)
+                0)
             local result              = os.time() + (hour > 0 and hour + 60 or 0) + (min > 0 and min + 60 or 0) + sec
             if remaineSpeedBooster == '0' or os.difftime(result, state.hangar.speedBooster) < 0 or min > 0 then
                 state.hangar.speedBooster = result
@@ -414,11 +441,11 @@ local function updateFinfo(text)
         elseif value:find('количеству собираемого урожа€') then
             local remaineQuantityBooster = tmLib.remainedtime(state.hangar.quantityBooster)
             local hour = tonumber(value:match('Ч ћножитель х2 к количеству собираемого урожа€:%s+(%d+) час') or
-            0) * 60 * 60
+                0) * 60 * 60
             local min = tonumber(value:match('Ч ћножитель х2 к количеству собираемого урожа€:%s+(%d+) мин') or
-            0) * 60
+                0) * 60
             local sec = tonumber(value:match('Ч ћножитель х2 к количеству собираемого урожа€:%s+(%d+) сек') or
-            0)
+                0)
             local result = os.time() + (hour > 0 and hour + 60 or 0) + (min > 0 and min + 60 or 0) + sec
             if remaineQuantityBooster == '0' or os.difftime(result, state.hangar.quantityBooster) < 0 or min > 0 then
                 state.hangar.quantityBooster = result
@@ -894,6 +921,20 @@ local function checkingStatus()
     end
 end
 
+local function timeGetUpdate()
+    wait(2000)
+    if isUpdater then
+        while true do
+            local list = {}
+            table.insert(list, tmLib.setting)
+            table.insert(list, ExpansionLua)
+            updater.checkUpdateList:run(list)
+            while updater.checkUpdateList:status() ~= 'dead' do wait(1000) end
+            wait(1000 * 60 * 60)
+            updater.check(script.this.name)
+        end
+    end
+end
 
 function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
@@ -901,13 +942,14 @@ function main()
 
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
-    EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua'
+    EXPORTS.URL_GET_UPDATE =
+    'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua'
 
     loadState()
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
-
+    lua_thread.create(timeGetUpdate)
 
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)

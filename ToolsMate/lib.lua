@@ -16,7 +16,7 @@ local lib = {
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
         version = "0.1.0",
-        path_script = getWorkingDirectory() .. 'ToolsMate\\lib.lua'
+        path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua'
     }
 }
 
@@ -351,7 +351,7 @@ function lib.checkingPath(path)
             createDirectory(fullPath)
         elseif not ok then
             print('{77DDE7}' .. path .. '{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: ' ..
-            err)
+                err)
             return false
         end
     end
