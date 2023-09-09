@@ -547,7 +547,8 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.25, 0.25, 0.26, 0.6))
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.Always)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        imgui.Begin(u8 "Помошник по ферме", renderWindow,
+        local title =  b('Помошник по ферме',  #state.owner < 1 and ' [Укажите владельца в настройках!]' or '', ' [ver ', script.this.version, ']')
+        imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
         for numberTab, nameTab in pairs({ 'Состав', 'Премии', 'Амбар', 'Теплица', 'Хлев',
@@ -719,13 +720,12 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
                 end
                 imgui.SameLine()
                 imgui.PushItemWidth(40)
-                imgui.InputText('id', owner_id, 256)
+                imgui.InputText('##newOwnerId', owner_id, 256)
                 imgui.SameLine()
                 if imgui.Button(u8 'Заполнить по id') then
                     owner = new.char[256](sampGetPlayerNickname(tmLib.getValueImgutNumber(owner_id, -1)) or '')
                     saveState()
                 end
-
                 imgui.Text(u8 'Если осталось меньше')
                 imgui.SameLine()
                 if imgui.InputText('##timeQuantityBooster', timeQuantityBooster, 50) then
