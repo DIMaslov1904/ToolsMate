@@ -36,6 +36,12 @@ local flowDef = function(fn, ...)
     end
 end
 
+local function newSampAddChatMessage(...)
+    local arg = { ... }
+    if not isSampLoaded() or not isSampfuncsLoaded() or not isSampAvailable() then return end
+    sampAddChatMessage(table.unpack(arg))
+end
+
 
 -- Переменные
 local comamnd = 'updater'
@@ -181,7 +187,7 @@ end
 -- Обновление скриптов
 local flowGet = lua_thread.create_suspended(function(name)
     if not name then
-        sampAddChatMessage(c({ script.this.name, MESSAGES.no_script_name }, ' '), color.errors)
+        newSampAddChatMessage(c({ script.this.name, MESSAGES.no_script_name }, ' '), color.errors)
         return
     end
     local directory, url, select_script, found, noAutoUpdate
@@ -195,17 +201,17 @@ local flowGet = lua_thread.create_suspended(function(name)
                 noAutoUpdate = lib.noAutoUpdate
                 select_script = lib.script
             else
-                sampAddChatMessage(c({ name, MESSAGES.no_update_url }, ' '), color.errors)
+                newSampAddChatMessage(c({ name, MESSAGES.no_update_url }, ' '), color.errors)
             end
             break
         end
     end
     if noAutoUpdate then
-        sampAddChatMessage(c({ script.this.name, name, MESSAGES.no_auto_update }, ' '), color.warning)
-        sampAddChatMessage(c({ script.this.name, MESSAGES.for_update, name }, ' '), color.warning)
+        newSampAddChatMessage(c({ script.this.name, name, MESSAGES.no_auto_update }, ' '), color.warning)
+        newSampAddChatMessage(c({ script.this.name, MESSAGES.for_update, name }, ' '), color.warning)
         return
     end
-    if not found then sampAddChatMessage(c({ script.this.name, name, MESSAGES.no_search }, ' '), color.errors) end
+    if not found then newSampAddChatMessage(c({ script.this.name, name, MESSAGES.no_search }, ' '), color.errors) end
     if not url then return end
 
     print(MESSAGES.downloading_updates)
@@ -219,14 +225,14 @@ local flowGet = lua_thread.create_suspended(function(name)
         if status == 6 then end_download = true end
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
             print(c({ directory, MESSAGES.download_completed }, ' '))
-            sampAddChatMessage(c({ script.this.name, name, MESSAGES.download_completed }, ' '), color.warning)
+            newSampAddChatMessage(c({ script.this.name, name, MESSAGES.download_completed }, ' '), color.warning)
             if select_script then select_script:reload() end
             loading = false
         end
     end)
 
     while loading do wait(500) end
-    if not end_download then sampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors) end
+    if not end_download then newSampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors) end
 end)
 
 -- Сравнение текстовых версий
@@ -261,7 +267,7 @@ local compareVersions = lua_thread.create_suspended(function(directory)
                     flowGet:run(lib_name)
                     while flowGet:status() ~= 'dead' do wait(1000) end
                 else
-                    sampAddChatMessage(text_message, color.warning)
+                    newSampAddChatMessage(text_message, color.warning)
                 end
             end
         end
@@ -287,7 +293,7 @@ local flowRequestCheck = lua_thread.create_suspended(function(name, url)
 
 
     if not end_download then
-        sampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors)
+        newSampAddChatMessage(c({ name, MESSAGES.download_error }, ' '), color.errors)
     end
 end)
 
@@ -299,7 +305,7 @@ local function check(arg)
     for _, v in pairs(state.libs) do if v.name == lib_name then lib = v end end
     lua_thread.create(function()
         print(MESSAGES.checking_updates)
-        if show_message then sampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color.warning) end
+        if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color.warning) end
 
         if lib then
             flowRequestCheck:run(lib.name, lib.urlCheckUpdate)
@@ -313,20 +319,20 @@ local function check(arg)
             end
         end
 
-        if not lib and lib_name then sampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '),
+        if not lib and lib_name then newSampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '),
                 color.errors) end
 
         print(MESSAGES.verification_completed)
-        if show_message then sampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
+        if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
                 color.warning) end
 
         if is_updates then
             if state.autoDownload then
                 print(MESSAGES.no_updates)
             elseif not lib_name then
-                for _, mess in ipairs(MESSAGES.update_instructions) do sampAddChatMessage(mess, color.warning) end
+                for _, mess in ipairs(MESSAGES.update_instructions) do newSampAddChatMessage(mess, color.warning) end
             else
-                sampAddChatMessage(b(MESSAGES.for_update, lib_name), color.warning)
+                newSampAddChatMessage(b(MESSAGES.for_update, lib_name), color.warning)
             end
         end
         is_updates = false
@@ -337,7 +343,7 @@ end
 local function changeState(parameter)
     state[parameter] = not state[parameter]
     save_state()
-    sampAddChatMessage(c({ script.this.name, MESSAGES[parameter], onoff(state[parameter]) }, ' '), color.warning)
+    newSampAddChatMessage(c({ script.this.name, MESSAGES[parameter], onoff(state[parameter]) }, ' '), color.warning)
 end
 
 -- Обработчик команд
@@ -384,7 +390,7 @@ local function handler(arg)
 
     for _, hand in pairs(handlers) do if hand.arg == fn then return hand.collback(lib) end end
     for _, hand in pairs(handlers) do
-        sampAddChatMessage(
+        newSampAddChatMessage(
             f('%s -> {FFCF40}/%s %s %s{FFFFFF} - %s', script.this.name, comamnd, hand.arg, hand.help or '', hand.name),
             -1)
     end

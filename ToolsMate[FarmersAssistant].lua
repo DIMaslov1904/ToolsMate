@@ -60,6 +60,7 @@ xpcall(require, function()
 end, 'ToolsMate.expansion')
 
 if #not_found > 0 then
+    if not isSampLoaded() or not isSampfuncsLoaded() or not isSampAvailable() then return end
     sampAddChatMessage(
         script.this.name .. 'выгружен. Библиотеки [' ..
         table.concat(not_found, ', ') .. '] не установлены!', 0xD87093)
