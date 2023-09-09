@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.0")
+script_version("0.3.1")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -1017,6 +1017,7 @@ function sampev.onServerMessage(_, text)
 
     if string.find(text, '[Ферма]{FFFFFF} Зерновоз', 1, true) then
         local count, price = text:match('%s(%d+)%s.+%sза (%d+) вирт')
+        if not count then return end
         if string.find(text, 'продукции за', 1, true) then
             state.hangar.harvest = state.hangar.harvest - count
             state.hangar.balance = state.hangar.balance + price
@@ -1027,11 +1028,13 @@ function sampev.onServerMessage(_, text)
         saveState()
     elseif string.find(text, 'в амбар фермы', 1, true) then
         local count = text:match('в амбар фермы (%d+) единиц урожая из машины')
+        if not count then return end
         state.hangar.harvest = state.hangar.harvest + count
         state.hangar.seed = state.hangar.seed - count
         saveState()
     elseif string.find(text, 'на поле', 1, true) then
         local count = text:match('на поле (%d+) семян')
+        if not count then return end
         state.hangar.warehouse = state.hangar.warehouse - count
         state.hangar.seed = state.hangar.seed + count
         saveState()
