@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.1")
+script_version("0.3.2")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -205,7 +205,7 @@ end
 
 -- Сохранение конфигурации
 local function saveState()
-    if #state.days > 0 then
+    if table.len(state.days) > 0 then
         state.days[select_date] = {
             profit = tmLib.imgToText(select_day.profit),
             members = {}
@@ -341,11 +341,13 @@ local function selectNextDay()
 end
 
 local is_open_popup = new.bool(false)
+
 local function tableRowAwards(nickname, data)
+    local disabled = data.pay[0]
     imgui.Separator()
     imgui.NextColumn()
     imgui.Text(nickname)
-    if imgui.IsItemClicked() then
+    if imgui.IsItemClicked() and not disabled then
         imgui.OpenPopup(nickname)
         is_open_popup[0] = true
     end
@@ -390,9 +392,15 @@ local function tableRowAwards(nickname, data)
     end
 
     imgui.NextColumn()
-    imgui.InputText('##fix_' .. nickname, data.fixed, 265)
-    imgui.NextColumn()
-    imgui.InputText('##path_' .. nickname, data.part, 265)
+    if disabled then
+        imgui.Text(tmLib.getValueImgut(data.fixed, '0'))
+        imgui.NextColumn()
+        imgui.Text(tmLib.getValueImgut(data.part, '0'))
+    else
+        imgui.InputText('##fix_' .. nickname, data.fixed, 265)
+        imgui.NextColumn()
+        imgui.InputText('##path_' .. nickname, data.part, 265)
+    end
     imgui.NextColumn()
     imgui.Text(separatorNumber(data.total))
     imgui.NextColumn()
@@ -459,7 +467,6 @@ local function updateFinfo(text)
         else
             for _, item in pairs(param_list) do
                 if value:find(item.title) then
-                    print(value:match(item.reg))
                     state.hangar[item.key] = tonumber(value:match(item.reg))
                     break
                 end
@@ -592,8 +599,10 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
                 if sum_part > 0 then one_part = (getValueImgutNumber(select_day.profit, 0) - sum_fized) / sum_part end
 
                 for nickname, data in pairs(select_day.members) do
-                    data.total = tmLib.round(
-                        (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
+                    if not data.pay[0] then
+                        data.total = tmLib.round(
+                            (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
+                    end
                 end
 
                 if difference_days > 1 then
@@ -928,25 +937,21 @@ local function checkingStatus()
     end
 end
 
-local function getUpdate()
-    if not isUpdater then return end
-    local list = {}
-    table.insert(list, tmLib.setting)
-    table.insert(list, ExpansionLua)
-    -- updater.checkUpdateList:run(list)
-end
-
 
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
     EXPORTS.URL_GET_UPDATE =
     'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BFarmersAssistant%5D.lua'
+    EXPORTS.DEPENDENCIES = {
+        tmLib.setting,
+        ExpansionLua
+    }
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(0) end
 
-    getUpdate()
+    -- getUpdate()
 
     loadState()
 
