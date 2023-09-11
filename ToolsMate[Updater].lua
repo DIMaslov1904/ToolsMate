@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.5")
+script_version("0.9.6")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -105,7 +105,7 @@ local function checkingPath(path)
             createDirectory(fullPath)
         elseif not ok then
             print('{77DDE7}' .. path .. '{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: ' ..
-            err)
+                err)
             return false
         end
     end
@@ -226,7 +226,7 @@ local flowGet = lua_thread.create_suspended(function(name)
     end
     if noAutoUpdate then
         if script.this.name == name then
-            lua_thread.create(function ()
+            lua_thread.create(function()
                 wait(10000)
             end)
         else
@@ -284,7 +284,7 @@ local compareVersions = lua_thread.create_suspended(function(directory)
         for _, lib in pairs(state.libs) do
             if lib.name == lib_name and compareVersion(lib.version, val.version) then
                 local text_message = c(
-                { lib_name, MESSAGES.new_version, val.version, MESSAGES.current_version, lib.version }, ' ')
+                    { lib_name, MESSAGES.new_version, val.version, MESSAGES.current_version, lib.version }, ' ')
                 print(text_message)
                 is_updates = true
                 flowGet:run(lib_name)
@@ -325,7 +325,8 @@ local function check(arg)
     for _, v in pairs(state.libs) do if v.name == lib_name then lib = v end end
     lua_thread.create(function()
         print(MESSAGES.checking_updates)
-        if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color.warning) end
+        if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color
+            .warning) end
 
         if lib then
             flowRequestCheck:run(lib.name, lib.urlCheckUpdate)
@@ -339,12 +340,16 @@ local function check(arg)
             end
         end
 
-        if not lib and lib_name then newSampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '),
-                color.errors) end
+        if not lib and lib_name then
+            newSampAddChatMessage(c({ script.this.name, lib_name, MESSAGES.no_search }, ' '),
+                color.errors)
+        end
 
         print(MESSAGES.verification_completed)
-        if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
-                color.warning) end
+        if show_message then
+            newSampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
+                color.warning)
+        end
 
         if is_updates then
             if state.autoDownload then

@@ -1,8 +1,8 @@
 -- Зависимости
 require 'ToolsMate.expansion'
-local ffi      = require 'ffi'
-local imgui    = require 'mimgui'
-local encoding = require 'encoding'
+local ffi        = require 'ffi'
+local imgui      = require 'mimgui'
+local encoding   = require 'encoding'
 encoding.default = 'CP1251'
 
 
@@ -12,7 +12,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.2",
+        version = "0.1.3",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -43,8 +43,10 @@ end
 ------
 -- Работа с датами
 ------
-lib.datetime = tostring(os.date( "!%H:%M:%S %d.%m.%Y", os.time(utc) + 3 * 3600 ))
-lib.datetime_pd = string.gsub(lib.datetime, "%d+:%d+", "06:02")
+lib.datetime = Def(os.date, "!%H:%M:%S %d.%m.%Y", os.time(utc) + 3 * 3600)
+lib.datetime_str = tostring(lib.datetime())
+
+lib.datetime_pd = string.gsub(lib.datetime_str, "%d+:%d+", "06:02")
 
 function lib.difftime(reference)
     local days = math.floor(os.difftime(os.time(), reference) / (24 * 60 * 60))
@@ -74,28 +76,26 @@ function lib.remainsToFormLine(time)
     return remaine == '0' and '' or ' осталось ' .. remaine
 end
 
-
-function lib.date_to_string(str) -- Передаем 19.04.2000 23:30 получем переменные по порядку
+function lib.dateToString(str) -- Передаем 19.04.2000 23:30 получем переменные по порядку
     local dt = {};
-    dt.hour,dt.min,dt.sec,dt.day,dt.month,dt.year = str:match("^(%d+):(%d+):(%d+)%s(%d+).(%d+).(%d+)")
-    for key,value in pairs(dt) do dt[key] = tonumber(value) end
-    dt.date = os.time{day=dt.day, year=dt.year, month=dt.month, hour=dt.hour, min=dt.min}
+    dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year = str:match("^(%d+):(%d+):(%d+)%s(%d+).(%d+).(%d+)")
+    for key, value in pairs(dt) do dt[key] = tonumber(value) end
+    dt.date = os.time { day = dt.day, year = dt.year, month = dt.month, hour = dt.hour, min = dt.min }
     return dt
 end
 
-
-function lib.checking_with_payday(date) -- Проверка на обновление после PayDay
+function lib.checkingWithPayday(date) -- Проверка на обновление после PayDay
     if not date then
         return true
     end
 
     local now = os.time(utc) + 3 * 3600
-    local pd = lib.date_to_string(lib.datetime_pd).date
-    local upd = lib.date_to_string(date).date
+    local pd = lib.dateToString(lib.datetime_pd).date
+    local upd = lib.dateToString(date).date
 
     if math.floor(os.difftime(now - upd) / (12 * 60 * 60)) > 1 then
         return true
-    elseif (now - upd > 1) and (pd - upd > 0) and (now - pd > 0)  then
+    elseif (now - upd > 1) and (pd - upd > 0) and (now - pd > 0) then
         return true
     end
 
@@ -103,8 +103,8 @@ function lib.checking_with_payday(date) -- Проверка на обновление после PayDay
 end
 
 -- Получить сегодняшнюю дату
-function lib.get_data()
-    return lib.datetime:sub(10, -1)
+function lib.getDate()
+    return lib.datetime_str:sub(10, -1)
 end
 
 ------
@@ -119,7 +119,7 @@ function lib.sampGetCharsInStream() -- получить id игроков в зоне стрима
     return inStream
 end
 
-function lib.getIdByNick(nick)  -- Получить id по нику игрока
+function lib.getIdByNick(nick) -- Получить id по нику игрока
     local _, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
     if nick == sampGetPlayerNickname(myid) then return myid end
     for i = 0, 1003 do
@@ -201,6 +201,11 @@ function lib.search3Dtext(patern) -- Поиск 3d текста
         end
     end
     return messages
+end
+
+function lib.getDist(x, y, z) -- Получить дистанцию от игрока до координат get_dist(x,y,z)
+    local pl_x, pl_y, pl_z = getCharCoordinates(PLAYER_PED)
+    return lib.round(getDistanceBetweenCoords3d(pl_x, pl_y, pl_z, x, y, z), 2)
 end
 
 ------
@@ -404,7 +409,6 @@ function lib.imguiTextWrapped(clr, text)
     if clr then imgui.PopStyleColor() end
 end
 
-
 ------
 -- Работа с цветом
 ------
@@ -413,7 +417,6 @@ function lib.isBackgroundDark(color)
     local r, g, b = color:match('(%x%x)(%x%x)(%x%x)')
     return tonumber(r, 16) * 0.299 + tonumber(g, 16) * 0.587 + tonumber(b, 16) * 0.114 < 180
 end
-
 
 ------
 -- Работа с файловой системой

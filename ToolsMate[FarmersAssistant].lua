@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.5")
+script_version("0.3.6")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -36,6 +36,10 @@ local zone = {
         x = 969.73431396484,
         y = 2160.6918945313,
         z = 10.820300102234
+    },
+    farms = {
+        x =  -6.2522883415222,
+        y =  62.375579833984
     }
 }
 
@@ -105,6 +109,8 @@ local renderWindowMembers = new.bool(true)
 local renderWindowStatuses = new.bool(true)
 local renderWindowOld = renderWindow[0]
 local sizeX, sizeY = getScreenResolution()
+local isAutoOpenFarmInfo = false
+
 
 local isFarmer = false
 local now_date = os.date('%m%d')
@@ -791,7 +797,7 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
-        for numberTab, nameTab in pairs({ 'Состав', 'Премии', 'Амбар', 'Теплица', 'Хлев',
+        for numberTab, nameTab in pairs({'Главная', 'Состав', 'Премии', 'Теплица', 'Хлев',
             'Настройки' }) do
             if imgui.Button(u8(nameTab), imgui.ImVec2(140, 34)) then
                 tab = numberTab
@@ -802,11 +808,11 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.SetCursorPos(imgui.ImVec2(155, 28))
         if imgui.BeginChild('Name##' .. tab, imgui.ImVec2(660, 490), false) then
             if tab == 1 then
-                imguiScreen.members()
-            elseif tab == 2 then
-                imguiScreen.awards()
-            elseif tab == 3 then
                 imguiScreen.ambar()
+            elseif tab == 2 then
+                imguiScreen.members()
+            elseif tab == 3 then
+                imguiScreen.awards()
             elseif tab == 4 then
                 imguiScreen.greenhouses()
             elseif tab == 5 then
@@ -997,6 +1003,52 @@ local farm_skin_ids = {
     '201'
 }
 
+
+-- Получаем цену фруктов
+local function getPriceFruit()
+    local text = tmLib.search3Dtext('Разгрузка фруктов')[1]
+    if text then
+        state.fruits = {}
+        for value in string.gmatch(text, '[^\n]+') do
+            if value:find('слив') then
+                state.fruits.plums = value:match('Стоимость слив:%s+(.+)%s+')
+            elseif value:find('яблок') then
+                state.fruits.apples= value:match('Стоимость яблок:%s+(.+)%s+')
+            elseif value:find('апельсинов') then
+                state.fruits.oranges= value:match('Стоимость апельсинов:%s+(.+)%s+')
+            elseif value:find('бананов') then
+                state.fruits.bananas= value:match('Стоимость бананов:%s+(.+)%s+')
+            end
+        end
+        state.fruits.update_at = tmLib.datetime()
+        local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 + state.fruits.bananas * 250
+        sampSendChat(f('/f Сегодня за полную машину фруктов: %s вирт', tmLib.separatorNumber(full_car)))
+        saveState()
+        return true
+    end
+    return false
+end
+local updateFarmInfo
+updateFarmInfo = lua_thread.create_suspended(function ()
+    while true do
+        isAutoOpenFarmInfo = true
+        sampSendChat('/finfo')
+        wait(60000)
+        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) > 50 then return end
+    end
+end)
+
+local updateTreesInfo
+updateTreesInfo = lua_thread.create_suspended(function ()
+    while true do
+        local messages = tmLib.search3Dtext('[Место')
+        updateTrees(messages)
+        print('обновляю')
+        wait(11000)
+        if table.len(messages) < 1 then return end
+    end
+end)
+
 local function init()
     loadState()
     isFarmer =  tmLib.iin(farm_skin_ids, tostring(getCharModel(PLAYER_PED)))
@@ -1024,7 +1076,7 @@ function main()
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
-            if (msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN) and wparam == VK_P then
+            if (msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN) and wparam == vkeys.VK_P then
                 renderWindow[0] = not renderWindow[0]
                 if not renderWindow[0] then saveState() end
             elseif wparam == vkeys.VK_X then
@@ -1042,7 +1094,17 @@ function main()
         end
     end)
 
+    
+
     while true do
+        if tmLib.getDist(zone.priceFruit.x, zone.priceFruit.y, zone.priceFruit.z) < 100 and tmLib.checkingWithPayday(state.fruits.update_at)  then
+            getPriceFruit()
+        end
+
+        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) < 50 and updateFarmInfo:status() ~= 'yielded' then
+            updateFarmInfo:run()
+        end
+
         if renderWindow[0] ~= renderWindowOld then
             if not renderWindow[0] then
                 tab = 1
@@ -1059,6 +1121,10 @@ function sampev.onShowDialog(id, style, title, btn1, btn2, text)
         updateMembers(text)
     elseif string.find(title, 'Информация о ферме', 1, true) then
         updateFinfo(text)
+        if isAutoOpenFarmInfo then
+            isAutoOpenFarmInfo = false
+            return false
+        end
     elseif string.find(title, 'Работа на ферме', 1, true) then
         if (btn1 == 'Начать') then
             sampSendDialogResponse(id, 1, 0)
@@ -1073,7 +1139,9 @@ function sampev.onSetInterior(interior)
         lua_thread.create(function()
             wait(5000)
             local messages = tmLib.search3Dtext('[Место')
-            if messages then return updateTrees(messages) end
+            if table.len(messages) > 0 and updateTreesInfo:status() ~= 'yielded' then
+                updateTreesInfo:run()
+           end
         end)
     end
 end
@@ -1129,12 +1197,15 @@ function sampev.onServerMessage(_, text)
 
     elseif string.find(text, 'котик?', 1, true) then -- TODO: УДалить после
         local my_id = text:match('- Dima_Maslow%[(%d+)%]:')
+    if my_id then
         local sms = f('/sms %d мур-мур', my_id)
-        lua_thread.create(function ()
-            sampSendChat(sms)
-            wait(1500)
-            sampSendChat('/me мурлычет')
-            sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))', -1)
-        end)
+            lua_thread.create(function ()
+                sampSendChat(sms)
+                wait(1500)
+                sampSendChat('/me мурлычет')
+                sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))', -1)
+            end)
+    end
+  
     end
 end
