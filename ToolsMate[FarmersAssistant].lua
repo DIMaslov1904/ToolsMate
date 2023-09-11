@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.4")
+script_version("0.3.5")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -8,6 +8,10 @@ script_description [[
 ]]
 
 
+
+-------------------------
+-- Текста уведомлений
+-------------------------
 local localization = {
     notifications = {
         speedBooster = {
@@ -24,9 +28,11 @@ local localization = {
     }
 }
 
-
+-------------------------
+-- Координаты мест
+-------------------------
 local zone = {
-    priceFruit = { -- позиция цен на фрукты
+    priceFruit = { -- цены на фрукты
         x = 969.73431396484,
         y = 2160.6918945313,
         z = 10.820300102234
@@ -34,8 +40,13 @@ local zone = {
 }
 
 
+-------------------------
 -- Зависимости
+-------------------------
 local not_found = {}
+require 'moonloader'
+local wm = require 'windows.message'
+local vkeys = require 'vkeys'
 local isSampev, sampev = xpcall(require, function() table.insert(not_found, 'SAMP.Lua') end, 'samp.events')
 local isImgui, imgui = xpcall(require, function() table.insert(not_found, 'MimGui') end, 'mimgui')
 local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
@@ -78,34 +89,23 @@ if #not_found > 0 then
     return
 end
 
-
-require 'moonloader'
-local wm = require 'windows.message'
-local vkeys = require 'vkeys'
-local encoding = require 'encoding'
-local ffi = require 'ffi'
-
-encoding.default = 'CP1251'
-
+-------------------------
 -- Сокращения
-local u8 = encoding.UTF8
+-------------------------
+local u8 = tmLib.u8
 local new = imgui.new
-
-local json = tmLib.json
 local getValueImgut = tmLib.getValueImgut
 local getValueImgutNumber = tmLib.getValueImgutNumber
+local separatorNumber = tmLib.separatorNumber
 
 
-
-
+-- Переменные
 local renderWindow = new.bool()
 local renderWindowMembers = new.bool(true)
 local renderWindowStatuses = new.bool(true)
 local renderWindowOld = renderWindow[0]
 local sizeX, sizeY = getScreenResolution()
 
-
--- Переменные
 local isFarmer = false
 local now_date = os.date('%m%d')
 local config_file_name = table.concat({ getWorkingDirectory(), 'config', script.this.name .. '.json' }, '/')
@@ -174,22 +174,6 @@ local param_list = {
 local statuses = {}
 
 
-local function imgToNumber(var)
-    return tonumber(u8:decode(ffi.string(var))) or 0
-end
-
-local function separatorNumber(number)
-    local str = tostring(number)
-    local result = ''
-
-    for i = 1, #str, 1 do
-        if (#str - i - 2) % 3 == 0 and #result > 0 then
-            result = result .. '.'
-        end
-        result = result .. string.sub(str, i, i)
-    end
-    return result
-end
 
 
 local function reverDate(date)
@@ -227,7 +211,7 @@ local function saveState()
         end
     end
     state.owner = tmLib.getValueImgut(owner, '')
-    json(config_file_name):Save(state)
+    tmLib.json(config_file_name):Save(state)
 end
 
 
@@ -251,7 +235,7 @@ end
 -- Загрузка конфигурации
 local function loadState()
     local isChanges
-    state = json(config_file_name):Load(state) or state
+    state = tmLib.json(config_file_name):Load(state) or state
     isChanges, state = bypassStructure(state, default_state)
     if (isChanges) then saveState() end
     createNewDay()
@@ -632,7 +616,7 @@ function imguiScreen.awards()
     imgui.PushItemWidth(100)
     imgui.InputText(u8 'Заработано фермой', select_day.profit, 256)
     imgui.SameLine()
-    imgui.Text(u8(separatorNumber(imgToNumber(select_day.profit))))
+    imgui.Text(u8(separatorNumber(tmLib.imgToNumber(select_day.profit))))
 
     imgui.Columns(5, 'awards', true)
     imgui.SetColumnWidth(-1, 200)
@@ -1002,6 +986,22 @@ local function checkingStatus()
     end
 end
 
+local farm_skin_ids = {
+    '34',
+    '131',
+    '132',
+    '157',
+    '158',
+    '161',
+    '198',
+    '201'
+}
+
+local function init()
+    loadState()
+    isFarmer =  tmLib.iin(farm_skin_ids, tostring(getCharModel(PLAYER_PED)))
+end
+
 
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
@@ -1016,7 +1016,7 @@ function main()
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(0) end
 
-    loadState()
+    init()
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
@@ -1024,7 +1024,7 @@ function main()
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
-            if (msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN) and wparam == vkeys.VK_P then
+            if (msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN) and wparam == VK_P then
                 renderWindow[0] = not renderWindow[0]
                 if not renderWindow[0] then saveState() end
             elseif wparam == vkeys.VK_X then
@@ -1130,11 +1130,11 @@ function sampev.onServerMessage(_, text)
     elseif string.find(text, 'котик?', 1, true) then -- TODO: УДалить после
         local my_id = text:match('- Dima_Maslow%[(%d+)%]:')
         local sms = f('/sms %d мур-мур', my_id)
-
         lua_thread.create(function ()
             sampSendChat(sms)
             wait(1500)
             sampSendChat('/me мурлычет')
+            sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))', -1)
         end)
     end
 end

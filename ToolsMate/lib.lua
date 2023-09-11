@@ -1,11 +1,8 @@
 -- Зависимости
 require 'ToolsMate.expansion'
 local ffi      = require 'ffi'
-local encoding = require 'encoding'
 local imgui    = require 'mimgui'
-local dlstatus = require('moonloader').download_status
-
-
+local encoding = require 'encoding'
 encoding.default = 'CP1251'
 
 
@@ -15,7 +12,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.1",
+        version = "0.1.2",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -28,6 +25,19 @@ local lib = {
 function lib.round(num, idp)
     local mult = 10 ^ (idp or 0)
     return math.floor(num * mult + 0.5) / mult
+end
+
+function lib.separatorNumber(number)
+    local str = tostring(number)
+    local result = ''
+
+    for i = 1, #str, 1 do
+        if (#str - i - 2) % 3 == 0 and #result > 0 then
+            result = result .. '.'
+        end
+        result = result .. string.sub(str, i, i)
+    end
+    return result
 end
 
 ------
@@ -64,6 +74,39 @@ function lib.remainsToFormLine(time)
     return remaine == '0' and '' or ' осталось ' .. remaine
 end
 
+
+function lib.date_to_string(str) -- Передаем 19.04.2000 23:30 получем переменные по порядку
+    local dt = {};
+    dt.hour,dt.min,dt.sec,dt.day,dt.month,dt.year = str:match("^(%d+):(%d+):(%d+)%s(%d+).(%d+).(%d+)")
+    for key,value in pairs(dt) do dt[key] = tonumber(value) end
+    dt.date = os.time{day=dt.day, year=dt.year, month=dt.month, hour=dt.hour, min=dt.min}
+    return dt
+end
+
+
+function lib.checking_with_payday(date) -- Проверка на обновление после PayDay
+    if not date then
+        return true
+    end
+
+    local now = os.time(utc) + 3 * 3600
+    local pd = lib.date_to_string(lib.datetime_pd).date
+    local upd = lib.date_to_string(date).date
+
+    if math.floor(os.difftime(now - upd) / (12 * 60 * 60)) > 1 then
+        return true
+    elseif (now - upd > 1) and (pd - upd > 0) and (now - pd > 0)  then
+        return true
+    end
+
+    return false
+end
+
+-- Получить сегодняшнюю дату
+function lib.get_data()
+    return lib.datetime:sub(10, -1)
+end
+
 ------
 -- Работа с игроками
 ------
@@ -76,7 +119,7 @@ function lib.sampGetCharsInStream() -- получить id игроков в зоне стрима
     return inStream
 end
 
-function lib.getIdByNick(nick)
+function lib.getIdByNick(nick)  -- Получить id по нику игрока
     local _, myid = sampGetPlayerIdByCharHandle(PLAYER_PED)
     if nick == sampGetPlayerNickname(myid) then return myid end
     for i = 0, 1003 do
@@ -84,12 +127,11 @@ function lib.getIdByNick(nick)
     end
 end
 
--- Получить цвет по id игрока
-function lib.getUserColor(id)
+function lib.getUserColor(id) -- Получить цвет по id игрока
     return id and ("%06X"):format(bit.band(sampGetPlayerColor(id), 0xFFFFFF)) or 'FFFFFF'
 end
 
-function lib.getColorAndId(nickname)
+function lib.getColorAndId(nickname) -- цвет и id в формета [id] или ''
     local id = lib.getIdByNick(nickname)
     local str_id = id and ('[%d]'):format(id) or ''
     return str_id, lib.getUserColor(id)
@@ -150,7 +192,7 @@ end
 ------
 -- Работа игрой
 ------
-function lib.search3Dtext(patern)
+function lib.search3Dtext(patern) -- Поиск 3d текста
     local messages = {}
     for id = 0, 2048 do
         if sampIs3dTextDefined(id) then
@@ -265,6 +307,10 @@ function lib.imguiHint(str_id, hint_text, color, no_center)
     imgui.SetCursorPos(p_orig)
 end
 
+function lib.imgToNumber(var)
+    return tonumber(lib.u8:decode(ffi.string(var))) or 0
+end
+
 function lib.imgToText(var)
     return lib.u8:decode(ffi.string(var))
 end
@@ -358,6 +404,7 @@ function lib.imguiTextWrapped(clr, text)
     if clr then imgui.PopStyleColor() end
 end
 
+
 ------
 -- Работа с цветом
 ------
@@ -366,6 +413,7 @@ function lib.isBackgroundDark(color)
     local r, g, b = color:match('(%x%x)(%x%x)(%x%x)')
     return tonumber(r, 16) * 0.299 + tonumber(g, 16) * 0.587 + tonumber(b, 16) * 0.114 < 180
 end
+
 
 ------
 -- Работа с файловой системой

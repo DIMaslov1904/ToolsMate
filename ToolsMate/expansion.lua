@@ -2,7 +2,7 @@ ExpansionLua = {
   name = 'tm-expansion',
   url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/expansion.lua',
   urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-  version = "0.1.1",
+  version = "0.1.2",
   path_script = getWorkingDirectory() .. '\\ToolsMate\\expansion.lua',
   tag = 'ToolsMate'
 }
@@ -52,6 +52,19 @@ table.len = function(t)
   local count = 0
   for _ in pairs(t) do count = count + 1 end
   return count
+end
+
+-- Отфильтровать таблицу, как в js table_filter(таблица, (el) => el.valur == true)
+function table.filter(arr, func)
+  local new_index = 1
+  local size_orig = #arr
+  for old_index, v in ipairs(arr) do
+      if func(v, old_index) then
+          arr[new_index] = v
+          new_index = new_index + 1
+      end
+  end
+  for i = new_index, size_orig do arr[i] = nil end
 end
 
 -- Улучшенный print
