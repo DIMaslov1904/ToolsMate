@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.2")
+script_version("0.9.3")
 script_url("https://t.me/ToolsMate")
 script_description('јвтообновление скриптов.')
 
@@ -45,7 +45,7 @@ end
 
 -- ѕеременные
 local comamnd = 'updater'
-local config_file_name = c({ getWorkingDirectory(), comamnd, b(script.this.name, '.json') }, '\\')
+local config_file_name = c({ getWorkingDirectory(), b('ToolsMate\\Updater\\', script.this.name, '.json') }, '\\')
 local update_path = getWorkingDirectory() .. '\\ToolsMate\\Updater\\'
 local is_updates = false -- есть есть обновлени€
 local state = {
@@ -174,11 +174,29 @@ local function browseScripts()
             tag = s.exports and s.exports.TAG_ADDONS or nil,
             script = s
         })
-        if (s.exports and s.exports.URL_CHECK_UPDATE) then
-            if (s.exports.TAG_ADDONS and not state.urlsCheck[s.exports.TAG_ADDONS]) then
-                state.urlsCheck[s.exports.TAG_ADDONS] = s.exports.URL_CHECK_UPDATE
-            elseif not s.exports.TAG_ADDONS then
-                state.urlsCheck[s.name] = s.exports.URL_CHECK_UPDATE
+        if s.exports then
+            if s.exports.URL_CHECK_UPDATE then
+                if (s.exports.TAG_ADDONS and not state.urlsCheck[s.exports.TAG_ADDONS]) then
+                    state.urlsCheck[s.exports.TAG_ADDONS] = s.exports.URL_CHECK_UPDATE
+                elseif not s.exports.TAG_ADDONS then
+                    state.urlsCheck[s.name] = s.exports.URL_CHECK_UPDATE
+                end
+            end
+
+            if s.exports.DEPENDENCIES then
+                for _, item in pairs(s.exports.DEPENDENCIES) do
+                    table.insert(state.libs, {
+                        name = item.name,
+                        version = item.version,
+                        path = item.path_script,
+                        urlCheckUpdate = item.urp_version or nil,
+                        urlGetUpdate = item.url_script or nil,
+                        noAutoUpdate = nil,
+                        tag = item.tag or nil,
+                        script = nil
+                    })
+                    state.urlsCheck[item.name] = item.urp_version
+                end
             end
         end
     end
@@ -403,28 +421,6 @@ local function run()
     checkingPath(update_path)
 end
 
---–усны€ проверка дополнительных файлов (checkUpdateList)
-local checkUpdateList = lua_thread.create_suspended(function(list)
-    checkingPath(update_path)
-
-    for _, item in pairs(list) do
-        table.insert(state.libs, {
-            name = item.name,
-            version = item.version,
-            path = item.path_script,
-            urlCheckUpdate = item.urp_version or nil,
-            urlGetUpdate = item.url_script or nil,
-            noAutoUpdate = nil,
-            tag = nil,
-            script = nil
-        })
-
-        state.urlsCheck[item.name] = item.urp_version
-        wait(1000)
-        check(item.name)
-        wait(5000)
-    end
-end)
 
 --–учное скачивание файла
 local download = lua_thread.create_suspended(function(item)
@@ -436,7 +432,7 @@ local download = lua_thread.create_suspended(function(item)
         path = item.path_script,
         urlGetUpdate = item.url_script or nil,
         noAutoUpdate = nil,
-        tag = nil,
+        tag = item.tag or nil,
         script = nil
     })
 
@@ -464,6 +460,5 @@ function main()
 end
 
 return {
-    checkUpdateList = checkUpdateList,
     download = download,
 }

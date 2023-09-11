@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.3")
+script_version("0.3.4")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -554,6 +554,246 @@ function imgui.TextColoredRGB(text)
     render_text(text)
 end
 
+local imguiScreen = {}
+
+------------------
+-- Окно состава
+------------------
+function imguiScreen.members()
+    local id_owner, color_owner = tmLib.getColorAndId(state.members.owner)
+    imgui.Text(u8 'Владелец:')
+    imgui.TextColoredRGB(('{%s}%s %s'):format(color_owner, state.members.owner, id_owner))
+    imgui.Separator()
+
+    imgui.Text(u8 'Заместители:')
+    for _, nikname in pairs(state.members.deputies) do
+        local id, color = tmLib.getColorAndId(nikname)
+        imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
+    end
+    imgui.Separator()
+
+    imgui.Text(u8 'Фермеры:')
+    for _, nikname in pairs(state.members.farmers) do
+        local id, color = tmLib.getColorAndId(nikname)
+        imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
+    end
+end
+
+------------------
+-- Окно премий
+------------------
+function imguiScreen.awards()
+    local sum_fized, sum_part = 0, 0
+
+    for nickname, data in pairs(select_day.members) do
+        sum_fized = sum_fized + getValueImgutNumber(data.fixed, 0)
+        sum_part = sum_part + getValueImgutNumber(data.part, 0)
+    end
+
+    local one_part = 0
+
+    if sum_part > 0 then one_part = (getValueImgutNumber(select_day.profit, 0) - sum_fized) / sum_part end
+
+    for nickname, data in pairs(select_day.members) do
+        if not data.pay[0] then
+            data.total = tmLib.round(
+                (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
+        end
+    end
+
+    if difference_days > 1 then
+        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0, 0, 0, 0))
+    end
+    if imgui.ArrowButton('Prevent day', 0) then
+        selectPrevDay()
+    end
+    if difference_days > 1 then
+        imgui.PopStyleColor()
+    end
+    imgui.SameLine()
+    imgui.Text(reverDate(select_date))
+    if difference_days == 0 then
+        imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0, 0, 0, 0))
+        imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0, 0, 0, 0))
+    end
+    imgui.SameLine()
+    if imgui.ArrowButton('Next day', 1) then
+        selectNextDay()
+    end
+    if difference_days == 0 then
+        imgui.PopStyleColor()
+        imgui.SameLine()
+        imgui.Text(u8 'Сегодня')
+    end
+
+    imgui.PushItemWidth(100)
+    imgui.InputText(u8 'Заработано фермой', select_day.profit, 256)
+    imgui.SameLine()
+    imgui.Text(u8(separatorNumber(imgToNumber(select_day.profit))))
+
+    imgui.Columns(5, 'awards', true)
+    imgui.SetColumnWidth(-1, 200)
+    imgui.Text(u8 'Ник')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 120)
+    imgui.Text(u8 'Фикс')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 100)
+    imgui.Text(u8 'Доля')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 100)
+    imgui.Text(u8 'Итого')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 80)
+    imgui.Text(u8 'Выплачено')
+
+    for nickname, data in pairs(select_day.members) do
+        tableRowAwards(nickname, data)
+    end
+end
+
+------------------
+-- Окно амбара
+------------------
+function imguiScreen.ambar()
+    imgui.Columns(2, 'ambar', false)
+
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Баланс фермы')
+    imgui.NextColumn()
+    imgui.Text(separatorNumber(state.hangar.balance))
+    imgui.NextColumn()
+
+    imgui.Text(u8 'Семена в амбаре')
+    imgui.NextColumn()
+    imgui.ProgressBar(state.hangar.warehouse / 10000, imgui.ImVec2(100, 15),
+        separatorNumber(state.hangar.warehouse))
+    imgui.NextColumn()
+
+    imgui.Text(u8 'Урожая на поле')
+    imgui.NextColumn()
+    imgui.ProgressBar(state.hangar.seed / 5000, imgui.ImVec2(100, 15), separatorNumber(state.hangar.seed))
+    imgui.NextColumn()
+
+    imgui.Text(u8 'Продукции в амбаре')
+    imgui.NextColumn()
+    imgui.ProgressBar(state.hangar.harvest / 10000, imgui.ImVec2(100, 15),
+        separatorNumber(state.hangar.harvest))
+    imgui.NextColumn()
+
+
+    imgui.Text(u8('Буст скорости до'))
+    imgui.NextColumn()
+
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M:%S', state.hangar.speedBooster) ..
+        '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.speedBooster))
+    imgui.NextColumn()
+    imgui.Text(u8('Буст количества до'))
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M:%S', state.hangar.quantityBooster) ..
+        '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.quantityBooster))
+    imgui.NextColumn()
+
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M:%S', state.hangar.upd) .. ' {00FF00}' .. tmLib.difftime(state.hangar.upd) .. ' назад')
+    imgui.NextColumn()
+end
+
+------------------
+-- Окно теплицы
+------------------
+function imguiScreen.greenhouses()
+    imgui.Columns(2, 'trees', false)
+    for i, item in pairs(state.greenhouse.trees) do
+        imgui.SetColumnWidth(-1, 300)
+        imgui.Text(u8('№' .. tostring(i) .. ' ' .. item.name))
+        imgui.Text(u8(item.stage .. ' до след ' .. item.traceStage))
+        imgui.Text(u8 'Здоровье')
+        imgui.SameLine()
+        imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
+        imgui.Text(u8 'Питание  ')
+        imgui.SameLine()
+        imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
+        imgui.Text('==============')
+
+        if i == 6 then
+            imgui.NextColumn()
+        end
+    end
+end
+
+------------------
+-- Окно хлева
+------------------
+function imguiScreen.barn()
+end
+
+------------------
+-- Окно хлева
+------------------
+function imguiScreen.settings()
+    imgui.Text(u8 'Владелец фермы')
+    imgui.PushItemWidth(200)
+    if imgui.InputText('##ownerFarm', owner, 256) then
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.PushItemWidth(40)
+    imgui.InputText('##newOwnerId', owner_id, 256)
+    imgui.SameLine()
+    if imgui.Button(u8 'Заполнить по id') then
+        owner = new.char[256](sampGetPlayerNickname(tmLib.getValueImgutNumber(owner_id, -1)) or '')
+        saveState()
+    end
+    imgui.Text(u8 'Если осталось меньше')
+    imgui.SameLine()
+    if imgui.InputText('##timeQuantityBooster', timeQuantityBooster, 50) then
+        state.settings.timeQuantityBooster = tmLib.getValueImgutNumber(timeQuantityBooster, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 'мин уведомлять о бусте количества')
+    imgui.Text(u8 'Если осталось меньше')
+    imgui.SameLine()
+    if imgui.InputText('##timeSpeedBooster', timeSpeedBooster, 50) then
+        state.settings.timeSpeedBooster = tmLib.getValueImgutNumber(timeSpeedBooster, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 'мин уведомлять о бусте скорости')
+    imgui.Text(u8 'Если меньше')
+    imgui.SameLine()
+    if imgui.InputText('##countWarehouse', countWarehouse, 50) then
+        state.settings.countWarehouse = tmLib.getValueImgutNumber(countWarehouse, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 ' состояние склада, то уведомить')
+    imgui.Text(u8 'Если меньше')
+    imgui.SameLine()
+    if imgui.InputText('##countSeed', countSeed, 50) then
+        state.settings.countSeed = tmLib.getValueImgutNumber(countSeed, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 'засаженного на поле, то уведомить')
+    imgui.Text(u8 'Если больше')
+    imgui.SameLine()
+    if imgui.InputText('##countHarvest', countHarvest, 50) then
+        state.settings.countHarvest = tmLib.getValueImgutNumber(countHarvest, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 'готовой продукции на складе, то уведомить')
+end
+
 imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
     function(player)
         player.HideCursor = false
@@ -578,216 +818,20 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.SetCursorPos(imgui.ImVec2(155, 28))
         if imgui.BeginChild('Name##' .. tab, imgui.ImVec2(660, 490), false) then
             if tab == 1 then
-                local id_owner, color_owner = tmLib.getColorAndId(state.members.owner)
-                imgui.Text(u8 'Владелец:')
-                imgui.TextColoredRGB(('{%s}%s %s'):format(color_owner, state.members.owner, id_owner))
-                imgui.Separator()
-
-                imgui.Text(u8 'Заместители:')
-                for _, nikname in pairs(state.members.deputies) do
-                    local id, color = tmLib.getColorAndId(nikname)
-                    imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
-                end
-                imgui.Separator()
-
-                imgui.Text(u8 'Фермеры:')
-                for _, nikname in pairs(state.members.farmers) do
-                    local id, color = tmLib.getColorAndId(nikname)
-                    imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
-                end
+                imguiScreen.members()
             elseif tab == 2 then
-                local sum_fized, sum_part = 0, 0
-
-                for nickname, data in pairs(select_day.members) do
-                    sum_fized = sum_fized + getValueImgutNumber(data.fixed, 0)
-                    sum_part = sum_part + getValueImgutNumber(data.part, 0)
-                end
-
-                local one_part = 0
-
-                if sum_part > 0 then one_part = (getValueImgutNumber(select_day.profit, 0) - sum_fized) / sum_part end
-
-                for nickname, data in pairs(select_day.members) do
-                    if not data.pay[0] then
-                        data.total = tmLib.round(
-                            (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
-                    end
-                end
-
-                if difference_days > 1 then
-                    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0, 0, 0, 0))
-                    imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0, 0, 0, 0))
-                    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0, 0, 0, 0))
-                end
-                if imgui.ArrowButton('Prevent day', 0) then
-                    selectPrevDay()
-                end
-                if difference_days > 1 then
-                    imgui.PopStyleColor()
-                end
-                imgui.SameLine()
-                imgui.Text(reverDate(select_date))
-                if difference_days == 0 then
-                    imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0, 0, 0, 0))
-                    imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0, 0, 0, 0))
-                    imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0, 0, 0, 0))
-                end
-                imgui.SameLine()
-                if imgui.ArrowButton('Next day', 1) then
-                    selectNextDay()
-                end
-                if difference_days == 0 then
-                    imgui.PopStyleColor()
-                    imgui.SameLine()
-                    imgui.Text(u8 'Сегодня')
-                end
-
-                imgui.PushItemWidth(100)
-                imgui.InputText(u8 'Заработано фермой', select_day.profit, 256)
-                imgui.SameLine()
-                imgui.Text(u8(separatorNumber(imgToNumber(select_day.profit))))
-
-                imgui.Columns(5, 'awards', true)
-                imgui.SetColumnWidth(-1, 200)
-                imgui.Text(u8 'Ник')
-                imgui.NextColumn()
-                imgui.SetColumnWidth(-1, 120)
-                imgui.Text(u8 'Фикс')
-                imgui.NextColumn()
-                imgui.SetColumnWidth(-1, 100)
-                imgui.Text(u8 'Доля')
-                imgui.NextColumn()
-                imgui.SetColumnWidth(-1, 100)
-                imgui.Text(u8 'Итого')
-                imgui.NextColumn()
-                imgui.SetColumnWidth(-1, 80)
-                imgui.Text(u8 'Выплачено')
-
-                for nickname, data in pairs(select_day.members) do
-                    tableRowAwards(nickname, data)
-                end
+                imguiScreen.awards()
             elseif tab == 3 then
-                imgui.Columns(2, 'ambar', false)
-
-                imgui.SetColumnWidth(-1, 160)
-                imgui.Text(u8 'Баланс фермы')
-                imgui.NextColumn()
-                imgui.Text(separatorNumber(state.hangar.balance))
-                imgui.NextColumn()
-
-                imgui.Text(u8 'Семена в амбаре')
-                imgui.NextColumn()
-                imgui.ProgressBar(state.hangar.warehouse / 10000, imgui.ImVec2(100, 15),
-                    separatorNumber(state.hangar.warehouse))
-                imgui.NextColumn()
-
-                imgui.Text(u8 'Урожая на поле')
-                imgui.NextColumn()
-                imgui.ProgressBar(state.hangar.seed / 5000, imgui.ImVec2(100, 15), separatorNumber(state.hangar.seed))
-                imgui.NextColumn()
-
-                imgui.Text(u8 'Продукции в амбаре')
-                imgui.NextColumn()
-                imgui.ProgressBar(state.hangar.harvest / 10000, imgui.ImVec2(100, 15),
-                    separatorNumber(state.hangar.harvest))
-                imgui.NextColumn()
-
-
-                imgui.Text(u8('Буст скорости до'))
-                imgui.NextColumn()
-
-                imgui.TextColoredRGB('{AAAAAA}' ..
-                    os.date('%H:%M:%S', state.hangar.speedBooster) ..
-                    '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.speedBooster))
-                imgui.NextColumn()
-                imgui.Text(u8('Буст количества до'))
-                imgui.NextColumn()
-                imgui.TextColoredRGB('{AAAAAA}' ..
-                    os.date('%H:%M:%S', state.hangar.quantityBooster) ..
-                    '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.quantityBooster))
-                imgui.NextColumn()
-
-                imgui.Text(u8 'Синхроницазия')
-                imgui.NextColumn()
-                imgui.TextColoredRGB('{AAAAAA}' ..
-                    os.date('%H:%M:%S', state.hangar.upd) .. ' {00FF00}' .. tmLib.difftime(state.hangar.upd) .. ' назад')
-                imgui.NextColumn()
+                imguiScreen.ambar()
             elseif tab == 4 then
-                imgui.Columns(2, 'trees', false)
-                for i, item in pairs(state.greenhouse.trees) do
-                    imgui.SetColumnWidth(-1, 300)
-                    imgui.Text(u8('№' .. tostring(i) .. ' ' .. item.name))
-                    imgui.Text(u8(item.stage .. ' до след ' .. item.traceStage))
-                    imgui.Text(u8 'Здоровье')
-                    imgui.SameLine()
-                    imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
-                    imgui.Text(u8 'Питание  ')
-                    imgui.SameLine()
-                    imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
-                    imgui.Text('==============')
-
-                    if i == 6 then
-                        imgui.NextColumn()
-                    end
-                end
+                imguiScreen.greenhouses()
+            elseif tab == 5 then
+                imguiScreen.barn()
             elseif tab == 6 then
-                imgui.Text(u8 'Владелец фермы')
-                imgui.PushItemWidth(200)
-                if imgui.InputText('##ownerFarm', owner, 256) then
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.PushItemWidth(40)
-                imgui.InputText('##newOwnerId', owner_id, 256)
-                imgui.SameLine()
-                if imgui.Button(u8 'Заполнить по id') then
-                    owner = new.char[256](sampGetPlayerNickname(tmLib.getValueImgutNumber(owner_id, -1)) or '')
-                    saveState()
-                end
-                imgui.Text(u8 'Если осталось меньше')
-                imgui.SameLine()
-                if imgui.InputText('##timeQuantityBooster', timeQuantityBooster, 50) then
-                    state.settings.timeQuantityBooster = tmLib.getValueImgutNumber(timeQuantityBooster, 0)
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.Text(u8 'мин уведомлять о бусте количества')
-                imgui.Text(u8 'Если осталось меньше')
-                imgui.SameLine()
-                if imgui.InputText('##timeSpeedBooster', timeSpeedBooster, 50) then
-                    state.settings.timeSpeedBooster = tmLib.getValueImgutNumber(timeSpeedBooster, 0)
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.Text(u8 'мин уведомлять о бусте скорости')
-                imgui.Text(u8 'Если меньше')
-                imgui.SameLine()
-                if imgui.InputText('##countWarehouse', countWarehouse, 50) then
-                    state.settings.countWarehouse = tmLib.getValueImgutNumber(countWarehouse, 0)
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.Text(u8 ' состояние склада, то уведомить')
-                imgui.Text(u8 'Если меньше')
-                imgui.SameLine()
-                if imgui.InputText('##countSeed', countSeed, 50) then
-                    state.settings.countSeed = tmLib.getValueImgutNumber(countSeed, 0)
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.Text(u8 'засаженного на поле, то уведомить')
-                imgui.Text(u8 'Если больше')
-                imgui.SameLine()
-                if imgui.InputText('##countHarvest', countHarvest, 50) then
-                    state.settings.countHarvest = tmLib.getValueImgutNumber(countHarvest, 0)
-                    saveState()
-                end
-                imgui.SameLine()
-                imgui.Text(u8 'готовой продукции на складе, то уведомить')
+                imguiScreen.settings()
             end
             imgui.EndChild()
         end
-
         imgui.End()
         imgui.PopStyleColor()
     end
@@ -853,7 +897,7 @@ imgui.OnFrame(
                     text = localization.notifications[val.key].current
                 end
             end
-            imgui.Text(u8(c({text, val.data}, ' ')))
+            imgui.Text(u8(c({ text, val.data }, ' ')))
         end
 
         imgui.End()
@@ -1015,6 +1059,12 @@ function sampev.onShowDialog(id, style, title, btn1, btn2, text)
         updateMembers(text)
     elseif string.find(title, 'Информация о ферме', 1, true) then
         updateFinfo(text)
+    elseif string.find(title, 'Работа на ферме', 1, true) then
+        if (btn1 == 'Начать') then
+            sampSendDialogResponse(id, 1, 0)
+            sampCloseCurrentDialogWithButton(0)
+            return false
+        end
     end
 end
 
@@ -1034,6 +1084,11 @@ function sampev.onServerMessage(_, text)
     -- [Ферма]{FFFFFF} Pater_Neofit разгрузил в амбар фермы 1000 единиц урожая из машины №2
     -- [19:00:06]  [Ферма]{FFFFFF} El_Carton засеял на поле 2000 семян
     -- [Ферма]{FFFFFF} Stephen_Thompson выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора урожая на 2 часа ))
+
+
+--     [13:12:02]  [Подсказка]{FFFFFF} Используйте отображенную кнопку, находясь на поле, чтобы начать скашивание урожая
+-- [13:12:28]  Вы начали скашивание комбайном {FFFFFF}(( Двигайтесь по красным меткам ))
+-- [13:13:53]  [Ферма]{FFFFFF} Dima_Maslow выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора 
 
 
     -- [Ферма]{FFFFFF} Irene_Nishimiya завершила скашивание травы для хлева
@@ -1071,5 +1126,15 @@ function sampev.onServerMessage(_, text)
         state.hangar.speedBooster = os.time() + 2 * 3600
     elseif string.find(text, 'удобрение кукурузником', 1, true) then
         state.hangar.quantityBooster = os.time() + 2 * 3600
+
+    elseif string.find(text, 'котик?', 1, true) then -- TODO: УДалить после
+        local my_id = text:match('- Dima_Maslow%[(%d+)%]:')
+        local sms = f('/sms %d мур-мур', my_id)
+
+        lua_thread.create(function ()
+            sampSendChat(sms)
+            wait(1500)
+            sampSendChat('/me мурлычет')
+        end)
     end
 end

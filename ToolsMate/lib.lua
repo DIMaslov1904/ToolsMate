@@ -15,8 +15,9 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.0",
-        path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua'
+        version = "0.1.1",
+        path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
+        tag = 'ToolsMate'
     }
 }
 
@@ -32,6 +33,9 @@ end
 ------
 -- Работа с датами
 ------
+lib.datetime = tostring(os.date( "!%H:%M:%S %d.%m.%Y", os.time(utc) + 3 * 3600 ))
+lib.datetime_pd = string.gsub(lib.datetime, "%d+:%d+", "06:02")
+
 function lib.difftime(reference)
     local days = math.floor(os.difftime(os.time(), reference) / (24 * 60 * 60))
     local hour = math.floor(os.difftime(os.time(), reference) / (60 * 60)) % 60
@@ -330,6 +334,30 @@ function lib.TextColoredRGB(text)
     render_text(text)
 end
 
+function lib.imguiTextWrapped(clr, text)
+    if clr then imgui.PushStyleColor(ffi.C.ImGuiCol_Text, clr) end
+
+    text = ffi.new('char[?]', #text + 1, text)
+    local text_end = text + ffi.sizeof(text) - 1
+    local pFont = imgui.GetFont()
+
+    local scale = 1.0
+    local endPrevLine = pFont:CalcWordWrapPositionA(scale, text, text_end, imgui.GetContentRegionAvail().x)
+    imgui.TextUnformatted(text, endPrevLine)
+
+    while endPrevLine < text_end do
+        text = endPrevLine
+        if text[0] == 32 then text = text + 1 end
+        endPrevLine = pFont:CalcWordWrapPositionA(scale, text, text_end, imgui.GetContentRegionAvail().x)
+        if text == endPrevLine then
+            endPrevLine = endPrevLine + 1
+        end
+        imgui.TextUnformatted(text, endPrevLine)
+    end
+
+    if clr then imgui.PopStyleColor() end
+end
+
 ------
 -- Работа с цветом
 ------
@@ -357,112 +385,5 @@ function lib.checkingPath(path)
     end
     return true
 end
-
-------
--- Работа с обновлениями
-------
-local state = {
-    update_path = b(getWorkingDirectory(), '\\ToolsMate\\Update\\'),
-    libs = {}
-}
-
--- Сравнение текстовых версий
-local function compareVersion(current, new)
-    local function parser(ver)
-        local numbers = {}
-        local count = 0
-        local result = 0
-        for num in string.gmatch(ver, "([^.]+)") do
-            count = count + 1
-            numbers[count] = tonumber(num)
-        end
-        for i = count, 1, -1 do result = result + (numbers[i] * 1000 ^ (count - i)) end
-        return result
-    end
-
-    return parser(new) > parser(current)
-end
-
--- Обновление скриптов
-local flowGet = lua_thread.create_suspended(function(name)
-    if not name then return end
-    local directory, url, reload, found, noAutoUpdate
-
-    for _, l_lib in pairs(state.libs) do
-        if l_lib.name == name then
-            found = true
-            if l_lib.urlGetUpdate then
-                directory = l_lib.path
-                url = l_lib.urlGetUpdate
-                reload = l_lib.reload
-            end
-            break
-        end
-    end
-
-    if not found then return end
-    if not url then return end
-
-
-    local loading = true
-
-    downloadUrlToFile(url, directory, function(id, status)
-        if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-            if reload then reload() end
-            loading = false
-        end
-    end)
-    while loading do wait(500) end
-end)
-
-
-
--- Проверка версий
-local compareVersions  = lua_thread.create_suspended(function(directory)
-    local versions_json = lib.json(directory):Load({})
-
-    for lib_name, val in pairs(versions_json) do
-        for _, l_lib in pairs(state.libs) do
-            if l_lib.name == lib_name and compareVersion(l_lib.version, val.version) then
-                flowGet:run(lib_name)
-                while flowGet:status() ~= 'dead' do wait(1000) end
-            end
-        end
-    end
-end)
-
--- Загрузка сверщиков версий
-local flowRequestCheck = lua_thread.create_suspended(function(name, url)
-    local directory = b(state.update_path, name, '.json')
-    local loading = true
-
-    downloadUrlToFile(url, directory, function(id, status)
-        if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-            compareVersions:run(directory)
-            while compareVersions:status() ~= 'dead' do wait(1000) end
-            loading = false
-        end
-    end)
-    while loading do wait(500) end
-end)
-
-lib.checkUpdateList    = lua_thread.create_suspended(function(list)
-    lib.checkingPath(state.update_path)
-
-    for _, item in pairs(list) do
-        table.insert(state.libs, {
-            name = list.name,
-            version = list.version,
-            path = list.path_script,
-            urlGetUpdate = item.url_script,
-            urlCheckUpdate = item.urp_version,
-            reload = item.reload
-        })
-
-        flowRequestCheck:run(item.name, item.urp_version)
-        while flowRequestCheck:status() ~= 'dead' do wait(1000) end
-    end
-end)
-
 
 return lib
