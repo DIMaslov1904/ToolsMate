@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.3")
+script_version("0.9.4")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -225,9 +225,15 @@ local flowGet = lua_thread.create_suspended(function(name)
         end
     end
     if noAutoUpdate then
-        newSampAddChatMessage(c({ script.this.name, name, MESSAGES.no_auto_update }, ' '), color.warning)
-        newSampAddChatMessage(c({ script.this.name, MESSAGES.for_update, name }, ' '), color.warning)
-        return
+        if script.this.name == name then
+            lua_thread.create(function ()
+                wait(10000)
+            end)
+        else
+            newSampAddChatMessage(c({ script.this.name, name, MESSAGES.no_auto_update }, ' '), color.warning)
+            newSampAddChatMessage(c({ script.this.name, MESSAGES.for_update, name }, ' '), color.warning)
+            return
+        end
     end
     if not found then newSampAddChatMessage(c({ script.this.name, name, MESSAGES.no_search }, ' '), color.errors) end
     if not url then return end
@@ -281,12 +287,8 @@ local compareVersions = lua_thread.create_suspended(function(directory)
                 { lib_name, MESSAGES.new_version, val.version, MESSAGES.current_version, lib.version }, ' ')
                 print(text_message)
                 is_updates = true
-                if state.autoDownload then
-                    flowGet:run(lib_name)
-                    while flowGet:status() ~= 'dead' do wait(1000) end
-                else
-                    newSampAddChatMessage(text_message, color.warning)
-                end
+                flowGet:run(lib_name)
+                while flowGet:status() ~= 'dead' do wait(1000) end
             end
         end
     end
@@ -447,7 +449,6 @@ function main()
     EXPORTS.NAME_ADDONS = 'Обновление'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
     EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BUpdater%5D.lua'
-    EXPORTS.NO_AUTO_UPDATE = true
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
