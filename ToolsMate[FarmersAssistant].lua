@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.2")
+script_version("0.3.3")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -10,8 +10,14 @@ script_description [[
 
 local localization = {
     notifications = {
-        speedBooster = 'До окончания буста скорости',
-        quantityBooster = 'До окончания буста количества',
+        speedBooster = {
+            before = 'До окончания буста скорости',
+            current = 'Буст скорости окончен'
+        },
+        quantityBooster = {
+            before = 'До окончания буста количества',
+            current = 'Буст количества окончен'
+        },
         warehouse = 'На складе осталось',
         seed = 'На поле осталось',
         harvest = 'Готово продукции уже'
@@ -20,7 +26,7 @@ local localization = {
 
 
 local zone = {
-    priceFruit = {-- позиция цен на фрукты
+    priceFruit = { -- позиция цен на фрукты
         x = 969.73431396484,
         y = 2160.6918945313,
         z = 10.820300102234
@@ -100,6 +106,7 @@ local sizeX, sizeY = getScreenResolution()
 
 
 -- Переменные
+local isFarmer = false
 local now_date = os.date('%m%d')
 local config_file_name = table.concat({ getWorkingDirectory(), 'config', script.this.name .. '.json' }, '/')
 local default_state = {
@@ -554,7 +561,9 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.25, 0.25, 0.26, 0.6))
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.Always)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        local title =  b('Помошник по ферме',  #state.owner < 1 and ' [Укажите владельца в настройках!]' or '', ' [ver ', script.this.version, ']')
+        local title = b('Помошник по ферме',
+            #state.owner < 1 and ' [Укажите владельца в настройках!]' or '', ' [ver ',
+            script.this.version, ']')
         imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
@@ -836,7 +845,15 @@ imgui.OnFrame(
             imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse + imgui.WindowFlags.AlwaysAutoResize)
 
         for _, val in pairs(statuses) do
-            imgui.Text(u8(localization.notifications[val.key] .. ' ' .. val.data))
+            local text = localization.notifications[val.key]
+            if type(localization.notifications[val.key]) == 'table' then
+                if #val.data > 0 then
+                    text = localization.notifications[val.key].before
+                else
+                    text = localization.notifications[val.key].current
+                end
+            end
+            imgui.Text(u8(c({text, val.data}, ' ')))
         end
 
         imgui.End()
@@ -908,31 +925,35 @@ end
 local function checkingStatus()
     while true do
         statuses = {}
-        ------------------
-        -- проверка бустов
-        ------------------
+        if isFarmer then
+            ------------------
+            -- проверка бустов
+            ------------------
+            if tmLib.soontime(state.hangar.speedBooster, (state.settings.timeSpeedBooster or 0) * 60) then
+                table.insert(statuses,
+                    { key = 'speedBooster', data = tmLib.remainsToFormLine(state.hangar.speedBooster) })
+            end
 
-        if tmLib.soontime(state.hangar.speedBooster, (state.settings.timeSpeedBooster or 0) * 60) then
-            table.insert(statuses, { key = 'speedBooster', data = tmLib.remainsToFormLine(state.hangar.speedBooster) })
+            if tmLib.soontime(state.hangar.quantityBooster, (state.settings.timeQuantityBooster or 0) * 60) then
+                table.insert(statuses,
+                    { key = 'quantityBooster', data = tmLib.remainsToFormLine(state.hangar.quantityBooster) })
+            end
+
+            ------------------
+            -- проверка склада
+            ------------------
+            if state.hangar.warehouse < state.settings.countWarehouse then
+                table.insert(statuses, { key = 'warehouse', data = state.hangar.warehouse })
+            end
+
+            if state.hangar.seed < state.settings.countSeed then
+                table.insert(statuses, { key = 'seed', data = state.hangar.seed })
+            end
+
+            if state.hangar.harvest > state.settings.countHarvest then
+                table.insert(statuses, { key = 'harvest', data = state.hangar.harvest })
+            end
         end
-
-        if tmLib.soontime(state.hangar.quantityBooster, (state.settings.timeQuantityBooster or 0) * 60) then
-            table.insert(statuses,
-                { key = 'quantityBooster', data = tmLib.remainsToFormLine(state.hangar.quantityBooster) })
-        end
-
-        if state.hangar.warehouse < state.settings.countWarehouse then
-            table.insert(statuses, { key = 'warehouse', data = state.hangar.warehouse })
-        end
-
-        if state.hangar.seed < state.settings.countSeed then
-            table.insert(statuses, { key = 'seed', data = state.hangar.seed })
-        end
-
-        if state.hangar.harvest > state.settings.countHarvest then
-            table.insert(statuses, { key = 'harvest', data = state.hangar.harvest })
-        end
-
         wait(6000)
     end
 end
@@ -950,8 +971,6 @@ function main()
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(0) end
-
-    -- getUpdate()
 
     loadState()
 
@@ -1018,9 +1037,14 @@ function sampev.onServerMessage(_, text)
 
 
     -- [Ферма]{FFFFFF} Irene_Nishimiya завершила скашивание травы для хлева
+    -- один стог это - 400
 
 
-    if string.find(text, '[Ферма]{FFFFFF} Зерновоз', 1, true) then
+    if string.find(text, 'Работа на ферме начата', 1, true) then
+        isFarmer = true
+    elseif string.find(text, 'Рабочий день на ферме закончен', 1, true) then
+        isFarmer = false
+    elseif string.find(text, '[Ферма]{FFFFFF} Зерновоз', 1, true) then
         local count, price = text:match('%s(%d+)%s.+%sза (%d+) вирт')
         if not count then return end
         if string.find(text, 'продукции за', 1, true) then
@@ -1045,5 +1069,7 @@ function sampev.onServerMessage(_, text)
         saveState()
     elseif string.find(text, 'скашивание комбайном', 1, true) then
         state.hangar.speedBooster = os.time() + 2 * 3600
+    elseif string.find(text, 'удобрение кукурузником', 1, true) then
+        state.hangar.quantityBooster = os.time() + 2 * 3600
     end
 end
