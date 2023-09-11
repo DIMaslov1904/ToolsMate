@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.4")
+script_version("0.9.5")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -249,7 +249,7 @@ local flowGet = lua_thread.create_suspended(function(name)
         if status == 6 then end_download = true end
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
             print(c({ directory, MESSAGES.download_completed }, ' '))
-            newSampAddChatMessage(c({ script.this.name, name, MESSAGES.download_completed }, ' '), color.warning)
+            -- newSampAddChatMessage(c({ script.this.name, name, MESSAGES.download_completed }, ' '), color.warning)
             if select_script then select_script:reload() end
             loading = false
         end
