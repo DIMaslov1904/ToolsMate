@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.4.0")
+script_version("0.4.1")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -230,7 +230,6 @@ local function createNewDay()
     if not state.days[select_date] or not state.days[select_date].profit or not state.days[select_date].members then
         state.days[select_date] = { profit = "0", members = {} }
     end
-    print('всё норма')
     select_day = state.days[select_date]
 end
 
@@ -1015,7 +1014,7 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
             'Настройки' }) do
             if imgui.Button(u8(nameTab), imgui.ImVec2(140, 34)) then
                 tab = numberTab
-                if tab == 2 then createMembersAward() end
+                if tab == 3 then createMembersAward() end
             end
         end
 
@@ -1202,7 +1201,7 @@ local function checkingStatus()
                 table.insert(statuses, { key = 'harvest', data = state.hangar.harvest })
             end
         end
-        wait(6000)
+        wait(1000)
     end
 end
 
