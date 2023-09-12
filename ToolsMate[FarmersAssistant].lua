@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.3.7")
+script_version("0.4.0")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -38,9 +38,19 @@ local zone = {
         z = 10.820300102234
     },
     farms = {
-        x =  -6.2522883415222,
-        y =  62.375579833984
+        x = -6.2522883415222,
+        y = 62.375579833984
     }
+}
+
+-------------------------
+-- Соответсвия имён
+-------------------------
+local fields = {
+    plums = 'Сливовое дерево',
+    apples = 'Яблоневое дерево',
+    oranges = 'Апельсиновое дерево',
+    bananas = 'Банановое дерево',
 }
 
 
@@ -112,6 +122,8 @@ local sizeX, sizeY = getScreenResolution()
 local isAutoOpenFarmInfo = false
 local inZoneFruitSale = false
 local isFarmer = false
+local cameOutOfInterior = false
+local loadingCompleted = false
 local now_date = os.date('%m%d')
 local config_file_name = table.concat({ getWorkingDirectory(), 'config', script.this.name .. '.json' }, '/')
 local default_state = {
@@ -121,15 +133,16 @@ local default_state = {
         owner = '',
         deputies = {},
         farmers = {},
+        upd = 0
     },
     hangar = {
         balance = 0,
         warehouse = 0,
         seed = 0,
         harvest = 0,
-        quantityBooster = os.time(),
-        speedBooster = os.time(),
-        upd = os.time()
+        quantityBooster = 0,
+        speedBooster = 0,
+        upd = 0
     },
     greenhouse = {
         trees = {},
@@ -138,6 +151,7 @@ local default_state = {
             apples = 0,
             oranges = 0,
             bananas = 0,
+            upd = 0,
         },
         seedlings = {
             plums = 0,
@@ -160,6 +174,13 @@ local default_state = {
         apples = 0,
         oranges = 0,
         bananas = 0,
+        upd = 0,
+    },
+    barn = {
+        milk = 0,
+        hay = 0,
+        cows = {},
+        upd = 0,
     }
 }
 
@@ -209,6 +230,7 @@ local function createNewDay()
     if not state.days[select_date] or not state.days[select_date].profit or not state.days[select_date].members then
         state.days[select_date] = { profit = "0", members = {} }
     end
+    print('всё норма')
     select_day = state.days[select_date]
 end
 
@@ -244,8 +266,8 @@ local function loadState()
     local isChanges
     state = tmLib.json(config_file_name):Load(state) or state
     isChanges, state = tmLib.bypassStructure(state, default_state)
-    if (isChanges) then saveState() end
     createNewDay()
+    if (isChanges) then saveState() end
 
     owner = new.char[256](state.owner or '')
     owner_id = new.char[100]('')
@@ -254,6 +276,8 @@ local function loadState()
     countWarehouse = new.char[50](tostring(state.settings.countWarehouse or '0'))
     countSeed = new.char[50](tostring(state.settings.countSeed or '0'))
     countHarvest = new.char[50](tostring(state.settings.countHarvest or '0'))
+
+    loadingCompleted = true
 end
 
 
@@ -427,6 +451,8 @@ local function updateMembers(text)
     for i = 1, 10 - #state.members.farmers do
         table.insert(state.members.farmers, '{FF0033}свободное место')
     end
+
+    state.members.upd = os.time()
     saveState()
 end
 
@@ -475,19 +501,12 @@ local function updateFinfo(text)
 end
 
 function updateGreenhouseWarehouse(text)
-    -- state.greenhouse.seedlings = {
-    --     plums = tonumber(text:match('Саженцы ({EF5FEF}Слива{FFFFFF}):%s+(%S+) шт.')),
-    --     apples = tonumber(text:match('Саженцы ({FF0000}Яблоня{FFFFFF}):%s+(%S+) шт.')),
-    --     oranges = tonumber(text:match('Саженцы ({FF8000}Апельсин{FFFFFF}):%s+(%S+) шт.')),
-    --     bananas = tonumber(text:match('Саженцы ({FFFF00}Банан{FFFFFF}):%s+(%S+) шт.')),
-    -- }
-
-    -- {FFFFFF}Саженцы ({EF5FEF}Слива{FFFFFF}):	3 шт.
-    -- Саженцы ({FF0000}Яблоня{FFFFFF}):	3 шт.
-    -- Саженцы ({FF8000}Апельсин{FFFFFF}):	3 шт.
-    -- Саженцы ({FFFF00}Банан{FFFFFF}):	3 шт.
-
-    print(text:match('{FFFFFF}Саженцы ({EF5FEF}Слива{FFFFFF})::%s+(%S+)%s'))
+    state.greenhouse.seedlings = {
+        plums = tonumber(text:match('Саженцы %({EF5FEF}Слива{FFFFFF}%):%s+(%S+) шт.')),
+        apples = tonumber(text:match('Саженцы %({FF0000}Яблоня{FFFFFF}%):%s+(%S+) шт.')),
+        oranges = tonumber(text:match('Саженцы %({FF8000}Апельсин{FFFFFF}%):%s+(%S+) шт.')),
+        bananas = tonumber(text:match('Саженцы %({FFFF00}Банан{FFFFFF}%):%s+(%S+) шт.')),
+    }
 
     state.greenhouse.fruits = {
         plums = tonumber(text:match('Сливы:%s+(%S+)/')),
@@ -501,7 +520,6 @@ function updateGreenhouseWarehouse(text)
     state.greenhouse.fertilizer = tonumber(text:match('Удобрение:%s+(%S+)/'))
     saveState()
 end
-
 
 local function updateTrees(arr)
     for _, item in pairs(arr) do
@@ -596,6 +614,15 @@ function imguiScreen.members()
         local id, color = tmLib.getColorAndId(nikname)
         imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
     end
+
+    imgui.Separator()
+
+    imgui.Columns(2, 'SynchronitasiaMembers', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.members.upd) .. ' {00FF00}' .. tmLib.difftime(state.members.upd) .. ' назад')
 end
 
 ------------------
@@ -721,95 +748,145 @@ function imguiScreen.ambar()
     imgui.Text(u8 'Синхроницазия')
     imgui.NextColumn()
     imgui.TextColoredRGB('{AAAAAA}' ..
-        os.date('%H:%M:%S', state.hangar.upd) .. ' {00FF00}' .. tmLib.difftime(state.hangar.upd) .. ' назад')
+        os.date('%H:%M', state.hangar.upd) .. ' {00FF00}' .. tmLib.difftime(state.hangar.upd) .. ' назад')
     imgui.NextColumn()
 
     imgui.Separator()
-
-    imgui.Text(u8 'Цены на фрукты')
+    imgui.Columns(1)
+    imgui.Text(u8 'Цены на фрукты ')
     imgui.Columns(4, 'fruit', false)
     imgui.SetColumnWidth(-1, 60)
     imgui.Text(u8 'Сливы')
     imgui.NextColumn()
     imgui.SetColumnWidth(-1, 50)
-    imgui.TextColoredRGB(('{00FF00}'..tostring(state.fruits.plums)) or '{FF0000}н/д')
+    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.plums)) or '{FF0000}н/д')
     imgui.NextColumn()
     imgui.SetColumnWidth(-1, 60)
     imgui.Text(u8 'Апельсины')
     imgui.NextColumn()
     imgui.SetColumnWidth(-1, 50)
-    imgui.TextColoredRGB(('{00FF00}'..tostring(state.fruits.oranges)) or '{FF0000}н/д')
+    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.oranges)) or '{FF0000}н/д')
     imgui.NextColumn()
     imgui.Text(u8 'Яблоки')
     imgui.NextColumn()
-    imgui.TextColoredRGB(('{00FF00}'..tostring(state.fruits.apples)) or '{FF0000}н/д')
+    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.apples)) or '{FF0000}н/д')
     imgui.NextColumn()
     imgui.Text(u8 'Бананы')
     imgui.NextColumn()
-    imgui.TextColoredRGB(('{00FF00}'..tostring(state.fruits.bananas)) or '{FF0000}н/д')
-    imgui.Columns(1)
-    tmLib.TextColoredRGB('{FFFFFF}Полная машина {00FF00}' .. tmLib.separatorNumber(state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 + state.fruits.bananas * 250))
+    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.bananas)) or '{FF0000}н/д')
+    imgui.Columns(2, 'ambar', false)
+
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Полная машина за')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' ..
+        tmLib.separatorNumber(state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 +
+            state.fruits.bananas * 250))
+    imgui.NextColumn()
+
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date("%d.%m", state.fruits.upd) .. '  ' .. os.date('!%H:%M', state.fruits.upd))
+    imgui.NextColumn()
 
     imgui.Separator()
 
+    imgui.Columns(1)
     imgui.Text(u8 'Склад теплицы')
-    imgui.Columns(2, 'greenhouseWarehouse', false)
+    imgui.Columns(4, 'greenhouseWarehouse', false)
     imgui.SetColumnWidth(-1, 160)
-    imgui.Text(u8'Сливы')
+    imgui.Text(u8 'Сливы')
     imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 110)
     imgui.ProgressBar(state.greenhouse.fruits.plums / 2000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.fruits.plums))
     imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 45)
+    imgui.Text(u8 'Семян')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' .. state.greenhouse.seedlings.plums)
+    imgui.NextColumn()
 
-    imgui.Text(u8'Апельсины')
+
+    imgui.Text(u8 'Апельсины')
     imgui.NextColumn()
     imgui.ProgressBar(state.greenhouse.fruits.oranges / 2000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.fruits.oranges))
     imgui.NextColumn()
+    imgui.Text(u8 'Семян')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' .. state.greenhouse.seedlings.oranges)
+    imgui.NextColumn()
 
-    imgui.Text(u8'Яблоки')
+
+    imgui.Text(u8 'Яблоки')
     imgui.NextColumn()
     imgui.ProgressBar(state.greenhouse.fruits.apples / 2000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.fruits.apples))
     imgui.NextColumn()
+    imgui.Text(u8 'Семян')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' .. state.greenhouse.seedlings.apples)
+    imgui.NextColumn()
 
-    imgui.Text(u8'Бананы')
+
+    imgui.Text(u8 'Бананы')
     imgui.NextColumn()
     imgui.ProgressBar(state.greenhouse.fruits.bananas / 2000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.fruits.bananas))
     imgui.NextColumn()
+    imgui.Text(u8 'Семян')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' .. state.greenhouse.seedlings.bananas)
+    imgui.NextColumn()
 
-    imgui.Text(u8'Спрей')
+    imgui.Text(u8 'Спрей')
     imgui.NextColumn()
     imgui.ProgressBar(state.greenhouse.spray / 1000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.spray))
     imgui.NextColumn()
+    imgui.NextColumn()
+    imgui.NextColumn()
 
-    imgui.Text(u8'Удобрение')
+    imgui.Text(u8 'Удобрение')
     imgui.NextColumn()
     imgui.ProgressBar(state.greenhouse.fertilizer / 1000, imgui.ImVec2(100, 15),
         separatorNumber(state.greenhouse.fertilizer))
+
+    imgui.Columns(2, 'SynchronitasiaGreenhouse', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.greenhouse.fruits.upd) ..
+        ' {00FF00}' .. tmLib.difftime(state.greenhouse.fruits.upd) .. ' назад')
+
+    imgui.Separator()
+
+    imgui.Columns(1)
+    imgui.Text(u8 'Склад хлева')
+    imgui.Columns(2, 'barnWarehouse', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Сено')
+    imgui.NextColumn()
+    imgui.ProgressBar(state.barn.hay / 6000, imgui.ImVec2(100, 15),
+        separatorNumber(state.barn.hay))
     imgui.NextColumn()
 
-    imgui.Text(u8'Семена Сливы')
+    imgui.Text(u8 'Молоко')
     imgui.NextColumn()
-    tmLib.TextColoredRGB('{00FF00}'..state.greenhouse.seedlings.plums)
+    imgui.ProgressBar(state.barn.milk / 60, imgui.ImVec2(100, 15),
+        separatorNumber(state.barn.milk))
     imgui.NextColumn()
+    imgui.Columns(2, 'SynchronitasiaGreenhouse', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    imgui.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.barn.upd) .. ' {00FF00}' .. tmLib.difftime(state.barn.upd) .. ' назад')
 
-    imgui.Text(u8'Семена Апельсинов')
-    imgui.NextColumn()
-    tmLib.TextColoredRGB('{00FF00}'..state.greenhouse.seedlings.oranges )
-    imgui.NextColumn()
-
-    imgui.Text(u8'Семена Яблок')
-    imgui.NextColumn()
-    tmLib.TextColoredRGB('{00FF00}'..state.greenhouse.seedlings.apples)
-    imgui.NextColumn()
-
-    imgui.Text(u8'Семена Бананов')
-    imgui.NextColumn()
-    tmLib.TextColoredRGB('{00FF00}'..state.greenhouse.seedlings.bananas )
-    imgui.NextColumn()
+    imgui.Separator()
 end
 
 ------------------
@@ -839,10 +916,31 @@ end
 -- Окно хлева
 ------------------
 function imguiScreen.barn()
+    imgui.Columns(2, 'trees', false)
+    for i, item in pairs(state.barn.cows) do
+        imgui.SetColumnWidth(-1, 300)
+        imgui.Text(u8('Корова №' .. tostring(i)))
+        imgui.Text(u8(item.stage .. ' до след ' .. item.traceStage))
+        imgui.Text(u8 'Здоровье')
+        imgui.SameLine()
+        imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
+        imgui.Text(u8 'Сытость ')
+        imgui.SameLine()
+        imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
+        imgui.Text(u8 'Кормушка ')
+        imgui.SameLine()
+        imgui.ProgressBar(item.eat / 200, imgui.ImVec2(80, 15), tostring(item.eat))
+        imgui.Text(u8 'Молоко через ' .. item.traceMilk)
+        imgui.Text('==============')
+
+        if i == 3 then
+            imgui.NextColumn()
+        end
+    end
 end
 
 ------------------
--- Окно хлева
+-- Окно настроек
 ------------------
 function imguiScreen.settings()
     imgui.Text(u8 'Владелец фермы')
@@ -913,7 +1011,7 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
-        for numberTab, nameTab in pairs({'Главная', 'Состав', 'Премии', 'Теплица', 'Хлев',
+        for numberTab, nameTab in pairs({ 'Главная', 'Состав', 'Премии', 'Деревья', 'Коровы',
             'Настройки' }) do
             if imgui.Button(u8(nameTab), imgui.ImVec2(140, 34)) then
                 tab = numberTab
@@ -1129,16 +1227,18 @@ local function getPriceFruit()
             if value:find('слив') then
                 state.fruits.plums = tonumber(value:match('Стоимость слив:%s+(.+)%s+'))
             elseif value:find('яблок') then
-                state.fruits.apples= tonumber(value:match('Стоимость яблок:%s+(.+)%s+'))
+                state.fruits.apples = tonumber(value:match('Стоимость яблок:%s+(.+)%s+'))
             elseif value:find('апельсинов') then
-                state.fruits.oranges= tonumber(value:match('Стоимость апельсинов:%s+(.+)%s+'))
+                state.fruits.oranges = tonumber(value:match('Стоимость апельсинов:%s+(.+)%s+'))
             elseif value:find('бананов') then
-                state.fruits.bananas= tonumber(value:match('Стоимость бананов:%s+(.+)%s+'))
+                state.fruits.bananas = tonumber(value:match('Стоимость бананов:%s+(.+)%s+'))
             end
         end
-        state.fruits.update_at = tmLib.datetime()
-        local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 + state.fruits.bananas * 250
-        local l_text = f('/f Сегодня за полную машину фруктов: %s вирт', tmLib.separatorNumber(full_car))
+        state.fruits.upd = tmLib.datetime()
+        local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 +
+            state.fruits.bananas * 250
+        local l_text = f('/f Сегодня за полную машину фруктов: %s вирт',
+            tmLib.separatorNumber(full_car))
         if isFarmer then
             sampSendChat(l_text)
         else
@@ -1149,8 +1249,42 @@ local function getPriceFruit()
     end
     return false
 end
+
+-- Обновление информации о хлеве
+local function updateBarn(feeders, cows, warehouse)
+    if table.len(warehouse) > 0 then
+        local value = warehouse[1]
+        state.barn.milk = tonumber(value:match('Молоко:%s+(%d+)%s'))
+        state.barn.hay = tonumber(value:match('Сено:%s+(%d+)%s'))
+    end
+
+    for _, cow in pairs(cows) do
+        local min_dist = 9999
+        local new_col = {
+            stage = cow.text:match('<<%s(%A+)%s%['),
+            cow_number = tonumber(cow.text:match('%[(%d)%]')),
+            health = tonumber(cow.text:match('Здоровье: (%d+)')),
+            nutrition = tonumber(cow.text:match('Сытость: (%d+)')),
+            traceStage = tonumber(cow.text:match('До сл.стадии: (%d+)')),
+            traceMilk = tonumber(cow.text:match('До получ.молока: (%d+)')),
+            eat = 0
+        }
+
+        for _, feeder in pairs(feeders) do
+            local dist = tmLib.getDist2(cow.x, cow.y, cow.z, feeder.x, feeder.y, feeder.z)
+            if dist < min_dist then
+                min_dist = dist
+                new_col.eat = tonumber(feeder.text:match('Еда:%s+(%d+)%s'))
+            end
+        end
+        state.barn.cows[new_col.cow_number] = new_col
+        state.barn.upd = os.time()
+    end
+    saveState()
+end
+
 local updateFarmInfo
-updateFarmInfo = lua_thread.create_suspended(function ()
+updateFarmInfo = lua_thread.create_suspended(function()
     while true do
         isAutoOpenFarmInfo = true
         sampSendChat('/finfo')
@@ -1160,7 +1294,7 @@ updateFarmInfo = lua_thread.create_suspended(function ()
 end)
 
 local updateTreesInfo
-updateTreesInfo = lua_thread.create_suspended(function ()
+updateTreesInfo = lua_thread.create_suspended(function()
     while true do
         local messages = tmLib.search3Dtext('[Место')
         updateTrees(messages)
@@ -1169,9 +1303,22 @@ updateTreesInfo = lua_thread.create_suspended(function ()
     end
 end)
 
+
+local updateBarnThted
+updateBarnThted = lua_thread.create_suspended(function()
+    while true do
+        local feeders = tmLib.search3Dtext('<< Кормушка >>', true)
+        local cows = tmLib.search3Dtext('До сл.стадии', true)
+        local warehouse = tmLib.search3Dtext('<< Запасы хлева >>')
+        updateBarn(feeders, cows, warehouse)
+        wait(2000)
+        if table.len(feeders) < 1 and table.len(warehouse) < 1 then return end
+    end
+end)
+
 local function init()
     loadState()
-    isFarmer =  tmLib.iin(farm_skin_ids, tostring(getCharModel(PLAYER_PED)))
+    isFarmer = tmLib.iin(farm_skin_ids, tostring(getCharModel(PLAYER_PED)))
 end
 
 
@@ -1187,8 +1334,8 @@ function main()
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(0) end
-
     init()
+    while not loadingCompleted do wait(0) end
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
@@ -1214,9 +1361,10 @@ function main()
         end
     end)
 
+
     while true do
-        if tmLib.getDist(zone.priceFruit.x, zone.priceFruit.y, zone.priceFruit.z) < 100  then
-            if tmLib.checkingWithPayday(state.fruits.update_at) and not inZoneFruitSale then
+        if tmLib.getDist(zone.priceFruit.x, zone.priceFruit.y, zone.priceFruit.z) < 100 then
+            if tmLib.checkingWithPayday(state.fruits.upd) and not inZoneFruitSale then
                 inZoneFruitSale = true
                 getPriceFruit()
             end
@@ -1224,7 +1372,7 @@ function main()
             inZoneFruitSale = false
         end
 
-        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) < 50 and updateFarmInfo:status() ~= 'yielded' then
+        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) < 50 and updateFarmInfo:status() ~= 'yielded' and not cameOutOfInterior then
             updateFarmInfo:run()
         end
 
@@ -1266,7 +1414,17 @@ function sampev.onSetInterior(interior)
             local messages = tmLib.search3Dtext('[Место')
             if table.len(messages) > 0 and updateTreesInfo:status() ~= 'yielded' then
                 updateTreesInfo:run()
-           end
+            end
+            messages = tmLib.search3Dtext('<< Кормушка >>')
+            if table.len(messages) > 0 and updateBarnThted:status() ~= 'yielded' then
+                updateBarnThted:run()
+            end
+        end)
+    else
+        lua_thread.create(function()
+            cameOutOfInterior = true
+            wait(2000)
+            cameOutOfInterior = false
         end)
     end
 end
@@ -1279,9 +1437,9 @@ function sampev.onServerMessage(_, text)
     -- [Ферма]{FFFFFF} Stephen_Thompson выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора урожая на 2 часа ))
 
 
---     [13:12:02]  [Подсказка]{FFFFFF} Используйте отображенную кнопку, находясь на поле, чтобы начать скашивание урожая
--- [13:12:28]  Вы начали скашивание комбайном {FFFFFF}(( Двигайтесь по красным меткам ))
--- [13:13:53]  [Ферма]{FFFFFF} Dima_Maslow выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора 
+    --     [13:12:02]  [Подсказка]{FFFFFF} Используйте отображенную кнопку, находясь на поле, чтобы начать скашивание урожая
+    -- [13:12:28]  Вы начали скашивание комбайном {FFFFFF}(( Двигайтесь по красным меткам ))
+    -- [13:13:53]  [Ферма]{FFFFFF} Dima_Maslow выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора
 
 
     -- [Ферма]{FFFFFF} Irene_Nishimiya завершила скашивание травы для хлева
@@ -1319,18 +1477,39 @@ function sampev.onServerMessage(_, text)
         state.hangar.speedBooster = os.time() + 2 * 3600
     elseif string.find(text, 'удобрение кукурузником', 1, true) then
         state.hangar.quantityBooster = os.time() + 2 * 3600
+    elseif string.find(text, 'л. молока с коровы', 1, true) then
+        state.barn.milk = state.barn.milk + tonumber(text:match('(%d+) л. молока с коровы'))
+    elseif string.find(text, 'л. молока', 1, true) and string.find(text, 'прода', 1, true) then
+        state.barn.milk = state.barn.milk - tonumber(text:match('(%d+) л. молока'))
+        if state.barn.milk < 0 then state.barn.milk = 0 end
+    elseif string.find(text, 'фруктов с дерева на месте', 1, true) then
+        local key
 
+        for i, tree in pairs(state.greenhouse.trees) do
+            if i == tonumber(text:match('фруктов с дерева на месте №(%d)')) then
+                for k, val in pairs(fields) do
+                    if val == tree.name then
+                        key = k
+                        break
+                    end
+                end
+                break
+            end
+        end
+
+        state.greenhouse.fruits[key] = state.greenhouse.fruits[key] +
+        tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
     elseif string.find(text, 'котик?', 1, true) then -- TODO: УДалить после
         local my_id = text:match('- Dima_Maslow%[(%d+)%]:')
-    if my_id then
-        local sms = f('/sms %d мур-мур', my_id)
-            lua_thread.create(function ()
+        if my_id then
+            local sms = f('/sms %d мур-мур', my_id)
+            lua_thread.create(function()
                 sampSendChat(sms)
                 wait(1500)
                 sampSendChat('/me мурлычет')
-                sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))', -1)
+                sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))',
+                    -1)
             end)
-    end
-  
+        end
     end
 end

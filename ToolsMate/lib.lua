@@ -12,7 +12,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.4",
+        version = "0.1.5",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -43,8 +43,8 @@ end
 ------
 -- Работа с датами
 ------
-lib.datetime = Def(os.date, "!%H:%M:%S %d.%m.%Y", os.time(utc) + 3 * 3600)
-lib.datetime_str = tostring(lib.datetime())
+lib.datetime = Def(function () return os.time(utc) + 3 * 3600 end)
+lib.datetime_str = tostring( os.date("!%H:%M:%S %d.%m.%Y", lib.datetime()))
 
 lib.datetime_pd = string.gsub(lib.datetime_str, "%d+:%d+", "05:02")
 
@@ -57,6 +57,8 @@ function lib.difftime(reference)
     if hour > 0 then result = hour .. ' часов ' .. result end
     if days > 0 then result = days .. ' дней ' .. result end
     if result == '0 мин' then result = sec..' сек' end
+
+    if days > 3 then return 'давно' end
     return result
 end
 
@@ -96,7 +98,7 @@ function lib.checkingWithPayday(date) -- Проверка на обновление после PayDay
 
     local now = os.time(utc) + 3 * 3600
     local pd = lib.dateToString(lib.datetime_pd).date
-    local upd = lib.dateToString(date).date
+    local upd = type(date) == 'string' and lib.dateToString(date).date or date
 
     if math.floor(os.difftime(now - upd) / (12 * 60 * 60)) > 1 then
         return true
@@ -223,12 +225,23 @@ end
 ------
 -- Работа игрой
 ------
-function lib.search3Dtext(patern) -- Поиск 3d текста
+function lib.search3Dtext(patern, isCooridants) -- Поиск 3d текста
     local messages = {}
     for id = 0, 2048 do
         if sampIs3dTextDefined(id) then
-            local text = sampGet3dTextInfoById(id)
-            if string.find(text, patern, 1, true) then table.insert(messages, text) end
+            if isCooridants then
+                local text, color, posX, posY, posZ = sampGet3dTextInfoById(id)
+                if string.find(text, patern, 1, true) then table.insert(messages, {
+                    text = text,
+                    x = posX,
+                    y = posY,
+                    z = posZ,
+                }) end
+            else
+                local text = sampGet3dTextInfoById(id)
+                if string.find(text, patern, 1, true) then table.insert(messages, text) end
+            end
+            
         end
     end
     return messages
@@ -237,6 +250,10 @@ end
 function lib.getDist(x, y, z) -- Получить дистанцию от игрока до координат get_dist(x,y,z)
     local pl_x, pl_y, pl_z = getCharCoordinates(PLAYER_PED)
     return lib.round(getDistanceBetweenCoords3d(pl_x, pl_y, pl_z, x, y, z), 2)
+end
+
+function lib.getDist2(x1,y1,z1,x2,y2,z2)-- Получить дистанцию между точками
+    return lib.round(getDistanceBetweenCoords3d(x1,y1,z1,x2,y2,z2), 2)
 end
 
 ------
