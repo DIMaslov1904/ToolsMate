@@ -12,7 +12,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.3",
+        version = "0.1.4",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -46,15 +46,17 @@ end
 lib.datetime = Def(os.date, "!%H:%M:%S %d.%m.%Y", os.time(utc) + 3 * 3600)
 lib.datetime_str = tostring(lib.datetime())
 
-lib.datetime_pd = string.gsub(lib.datetime_str, "%d+:%d+", "06:02")
+lib.datetime_pd = string.gsub(lib.datetime_str, "%d+:%d+", "05:02")
 
 function lib.difftime(reference)
     local days = math.floor(os.difftime(os.time(), reference) / (24 * 60 * 60))
     local hour = math.floor(os.difftime(os.time(), reference) / (60 * 60)) % 60
     local min = math.floor(os.difftime(os.time(), reference) / (60)) % (60 * 60)
+    local sec = os.difftime(os.time(), reference) % (60 * 60 * 60)
     local result = min .. ' мин'
     if hour > 0 then result = hour .. ' часов ' .. result end
     if days > 0 then result = days .. ' дней ' .. result end
+    if result == '0 мин' then result = sec..' сек' end
     return result
 end
 
@@ -62,8 +64,10 @@ function lib.remainedtime(reference)
     if os.difftime(reference, os.time()) < 1 then return '0' end
     local hour = math.floor(os.difftime(reference, os.time()) / (60 * 60))
     local min = math.floor(os.difftime(reference, os.time()) / 60) % 60
+    local sec = os.difftime(os.time(), reference) % (60 * 60 * 60)
     local result = min .. ' мин'
     if hour > 0 then result = hour .. ' часов ' .. result end
+    if result == '0 мин' then result = sec..' сек' end
     return result
 end
 
@@ -80,6 +84,7 @@ function lib.dateToString(str) -- Передаем 19.04.2000 23:30 получем переменные п
     local dt = {};
     dt.hour, dt.min, dt.sec, dt.day, dt.month, dt.year = str:match("^(%d+):(%d+):(%d+)%s(%d+).(%d+).(%d+)")
     for key, value in pairs(dt) do dt[key] = tonumber(value) end
+    dt.hour = dt.hour + 7
     dt.date = os.time { day = dt.day, year = dt.year, month = dt.month, hour = dt.hour, min = dt.min }
     return dt
 end
@@ -187,6 +192,32 @@ function lib.iin(list, what_find, mode)
             return res
         end
     end
+end
+
+
+-------
+-- instance наша таблица
+-- образец
+-- приводит нашу таблицу к виду образца
+-----
+function lib.bypassStructure(instance, sample)
+    local isChanges = false
+    for key, val in pairs(sample) do
+        if type(val) ~= type(instance[key]) then
+            isChanges = true
+            if type(val) == 'table' then
+                _, instance[key] = lib.bypassStructure({}, val)
+            else
+                instance[key] = val
+            end
+        end
+
+        if type(val) == 'table' then
+            _, instance[key] = lib.bypassStructure(instance[key], val)
+        end
+
+    end
+    return isChanges, instance
 end
 
 ------
