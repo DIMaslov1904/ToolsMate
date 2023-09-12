@@ -1006,27 +1006,27 @@ local farm_skin_ids = {
 
 -- Получаем цену фруктов
 local function getPriceFruit()
-    local text = tmLib.search3Dtext('Разгрузка фруктов')[1]
-    if text then
-        state.fruits = {}
-        for value in string.gmatch(text, '[^\n]+') do
-            if value:find('слив') then
-                state.fruits.plums = value:match('Стоимость слив:%s+(.+)%s+')
-            elseif value:find('яблок') then
-                state.fruits.apples= value:match('Стоимость яблок:%s+(.+)%s+')
-            elseif value:find('апельсинов') then
-                state.fruits.oranges= value:match('Стоимость апельсинов:%s+(.+)%s+')
-            elseif value:find('бананов') then
-                state.fruits.bananas= value:match('Стоимость бананов:%s+(.+)%s+')
-            end
-        end
-        state.fruits.update_at = tmLib.datetime()
-        local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 + state.fruits.bananas * 250
-        sampSendChat(f('/f Сегодня за полную машину фруктов: %s вирт', tmLib.separatorNumber(full_car)))
-        saveState()
-        return true
-    end
-    return false
+    -- local text = tmLib.search3Dtext('Разгрузка фруктов')[1]
+    -- if text then
+    --     state.fruits = {}
+    --     for value in string.gmatch(text, '[^\n]+') do
+    --         if value:find('слив') then
+    --             state.fruits.plums = value:match('Стоимость слив:%s+(.+)%s+')
+    --         elseif value:find('яблок') then
+    --             state.fruits.apples= value:match('Стоимость яблок:%s+(.+)%s+')
+    --         elseif value:find('апельсинов') then
+    --             state.fruits.oranges= value:match('Стоимость апельсинов:%s+(.+)%s+')
+    --         elseif value:find('бананов') then
+    --             state.fruits.bananas= value:match('Стоимость бананов:%s+(.+)%s+')
+    --         end
+    --     end
+    --     state.fruits.update_at = tmLib.datetime()
+    --     local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 + state.fruits.bananas * 250
+    --     sampSendChat(f('/f Сегодня за полную машину фруктов: %s вирт', tmLib.separatorNumber(full_car)))
+    --     saveState()
+    --     return true
+    -- end
+    -- return false
 end
 local updateFarmInfo
 updateFarmInfo = lua_thread.create_suspended(function ()
@@ -1043,7 +1043,6 @@ updateTreesInfo = lua_thread.create_suspended(function ()
     while true do
         local messages = tmLib.search3Dtext('[Место')
         updateTrees(messages)
-        print('обновляю')
         wait(11000)
         if table.len(messages) < 1 then return end
     end
