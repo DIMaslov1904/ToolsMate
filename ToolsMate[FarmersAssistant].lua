@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.4.1")
+script_version("0.4.2")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -38,8 +38,36 @@ local zone = {
         z = 10.820300102234
     },
     farms = {
-        x = -6.2522883415222,
-        y = 62.375579833984
+        ['0'] = {
+            name = 'Ферма 0',
+            x= -381.60641479492,
+            y= -1432.0568847656
+        },
+        ['1'] = {
+            name = 'Ферма 1',
+            x= -107.21382904053,
+            y= 3.4244539737701
+        },
+        ['2'] = {
+            name = 'Ферма 2',
+            x= -1059.9808349609,
+            y= -1200.8695068359
+        },
+        ['3'] = {
+            name = 'Ферма 3',
+            x = -6.2522883415222,
+            y = 62.375579833984
+        },
+        ['4'] = {
+            name = 'Ферма 4',
+            x= 1931.8933105469,
+            y= 168.80578613281
+        },
+        ['5'] = {
+            name = 'Ферма не выбрана',
+            x = 1000,
+            y = 1000
+        }
     }
 }
 
@@ -61,6 +89,7 @@ local not_found = {}
 require 'moonloader'
 local wm = require 'windows.message'
 local vkeys = require 'vkeys'
+local inicfg = require 'inicfg'
 local isSampev, sampev = xpcall(require, function() table.insert(not_found, 'SAMP.Lua') end, 'samp.events')
 local isImgui, imgui = xpcall(require, function() table.insert(not_found, 'MimGui') end, 'mimgui')
 local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
@@ -115,8 +144,8 @@ local separatorNumber = tmLib.separatorNumber
 
 -- Переменные
 local renderWindow = new.bool()
-local renderWindowMembers = new.bool(true)
-local renderWindowStatuses = new.bool(true)
+local renderWindowMembers = new.bool()
+local renderWindowStatuses = new.bool()
 local renderWindowOld = renderWindow[0]
 local sizeX, sizeY = getScreenResolution()
 local isAutoOpenFarmInfo = false
@@ -125,9 +154,8 @@ local isFarmer = false
 local cameOutOfInterior = false
 local loadingCompleted = false
 local now_date = os.date('%m%d')
-local config_file_name = table.concat({ getWorkingDirectory(), 'config', script.this.name .. '.json' }, '/')
+local config_file_name = c({ getWorkingDirectory(), 'config', script.this.name .. '.json' }, '/')
 local default_state = {
-    owner = '',
     days = {},
     members = {
         owner = '',
@@ -185,6 +213,26 @@ local default_state = {
 }
 
 local state = table.copy(default_state)
+
+
+local ini_name = script.this.name .. '.ini'
+local ini = inicfg.load({
+    main = {
+        farm_number = 5,
+        rounding_premiums = 0
+    },
+}, ini_name)
+
+local select_farm = zone.farms[tostring(ini.main.farm_number)]
+
+local function saveIni()
+    inicfg.save(ini, ini_name)
+    select_farm = zone.farms[tostring(ini.main.farm_number)]
+end
+
+
+
+
 
 local timeQuantityBooster
 local timeSpeedBooster
@@ -277,6 +325,10 @@ local function loadState()
     countHarvest = new.char[50](tostring(state.settings.countHarvest or '0'))
 
     loadingCompleted = true
+end
+
+local function isNearFarm()
+    return tmLib.getDist(select_farm.x, select_farm.y, select_farm.z) < 50
 end
 
 
@@ -418,9 +470,9 @@ local function tableRowAwards(nickname, data)
         imgui.NextColumn()
         imgui.Text(tmLib.getValueImgut(data.part, '0'))
     else
-        imgui.InputText('##fix_' .. nickname, data.fixed, 265)
+        imgui.InputText('##fix_' .. nickname, data.fixed, tmLib.sizeof(data.fixed))
         imgui.NextColumn()
-        imgui.InputText('##path_' .. nickname, data.part, 265)
+        imgui.InputText('##path_' .. nickname, data.part, tmLib.sizeof(data.part))
     end
     imgui.NextColumn()
     imgui.Text(separatorNumber(data.total))
@@ -430,7 +482,7 @@ end
 
 -- Обновление состава
 local function updateMembers(text)
-    if text:match('Владелец%s+(%S+)%s+') ~= state.owner then
+    if not isNearFarm() then
         return
     end
     state.members = table.copy(default_state.members)
@@ -457,13 +509,13 @@ end
 
 -- Обновление информации о ферме
 local function updateFinfo(text)
+    if not isNearFarm() then
+        return
+    end
     state.hangar.upd = os.time()
 
     for value in string.gmatch(text, '[^\n]+') do
-        if value:find('Владелец') then
-            local l_owner = value:match('{FBDD7E}Владелец:{FFFFFF}%s+(%S+)')
-            if l_owner and state.owner ~= l_owner then return end
-        elseif value:find('скорости сбора урожая') then
+        if value:find('скорости сбора урожая') then
             local remaineSpeedBooster = tmLib.remainedtime(state.hangar.speedBooster)
             local hour                = tonumber(value:match('— Множитель х2 к скорости сбора урожая:%s+(%d+) час') or
                 0) * 60 * 60
@@ -627,8 +679,13 @@ end
 ------------------
 -- Окно премий
 ------------------
+local item_list_roul = { '1', '5k', '10k', '25k', '50k', '100k' }
+local item_list_roul_val = {1, 5000, 10000, 25000, 50000, 100000}
+local int_item_roul = new.int(ini.main.rounding_premiums)
+local ImItemsRoul = new['const char*'][#item_list_roul](item_list_roul)
+
 function imguiScreen.awards()
-    local sum_fized, sum_part = 0, 0
+    local sum_fized, sum_part, sum_remains = 0, 0, 0
 
     for nickname, data in pairs(select_day.members) do
         sum_fized = sum_fized + getValueImgutNumber(data.fixed, 0)
@@ -643,6 +700,9 @@ function imguiScreen.awards()
         if not data.pay[0] then
             data.total = tmLib.round(
                 (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
+            local remains = data.total % item_list_roul_val[int_item_roul[0]+1]
+            sum_remains = sum_remains + remains
+            data.total =  data.total - remains
         end
     end
 
@@ -675,9 +735,16 @@ function imguiScreen.awards()
     end
 
     imgui.PushItemWidth(100)
-    imgui.InputText(u8 'Заработано фермой', select_day.profit, 256)
+    imgui.InputText(u8 'Заработано фермой', select_day.profit, tmLib.sizeof(select_day.profit))
     imgui.SameLine()
     imgui.Text(u8(separatorNumber(tmLib.imgToNumber(select_day.profit))))
+
+    if imgui.Combo(u8"Округление премии", int_item_roul, ImItemsRoul, #item_list_roul) then
+        ini.main.rounding_premiums = int_item_roul[0]
+        saveIni()
+    end
+    imgui.SameLine()
+    tmLib.TextColoredRGB('Остаток от округления = {00FF00}'..tostring(sum_remains))
 
     imgui.Columns(5, 'awards', true)
     imgui.SetColumnWidth(-1, 200)
@@ -941,31 +1008,35 @@ end
 ------------------
 -- Окно настроек
 ------------------
+
+local item_list = { u8 "Ферма 0", u8 "Ферма 1", u8 "Ферма 2", u8 "Ферма 3", u8 "Ферма 4",
+    u8 "Не выбрана" }
+local int_item = new.int(ini.main.farm_number or #item_list - 1)
+local ImItems = new['const char*'][#item_list](item_list)
+
+
 function imguiScreen.settings()
-    imgui.Text(u8 'Владелец фермы')
-    imgui.PushItemWidth(200)
-    if imgui.InputText('##ownerFarm', owner, 256) then
-        saveState()
+    imgui.Text(u8 'Выберите вашу ферму')
+    imgui.SameLine()
+    imgui.PushItemWidth(100)
+    if imgui.Combo("##farmNumber", int_item, ImItems, #item_list) then
+        ini.main.farm_number = int_item[0]
+        saveIni()
     end
+    imgui.Separator()
+    imgui.Text(u8 'Настройка уведомлений')
+
+    imgui.Text(u8 'Если меньше')
     imgui.SameLine()
-    imgui.PushItemWidth(40)
-    imgui.InputText('##newOwnerId', owner_id, 256)
-    imgui.SameLine()
-    if imgui.Button(u8 'Заполнить по id') then
-        owner = new.char[256](sampGetPlayerNickname(tmLib.getValueImgutNumber(owner_id, -1)) or '')
-        saveState()
-    end
-    imgui.Text(u8 'Если осталось меньше')
-    imgui.SameLine()
-    if imgui.InputText('##timeQuantityBooster', timeQuantityBooster, 50) then
+    if imgui.InputText('##timeQuantityBooster', timeQuantityBooster, tmLib.sizeof(timeQuantityBooster)) then
         state.settings.timeQuantityBooster = tmLib.getValueImgutNumber(timeQuantityBooster, 0)
         saveState()
     end
     imgui.SameLine()
     imgui.Text(u8 'мин уведомлять о бусте количества')
-    imgui.Text(u8 'Если осталось меньше')
+    imgui.Text(u8 'Если меньше')
     imgui.SameLine()
-    if imgui.InputText('##timeSpeedBooster', timeSpeedBooster, 50) then
+    if imgui.InputText('##timeSpeedBooster', timeSpeedBooster, tmLib.sizeof(timeSpeedBooster)) then
         state.settings.timeSpeedBooster = tmLib.getValueImgutNumber(timeSpeedBooster, 0)
         saveState()
     end
@@ -973,7 +1044,7 @@ function imguiScreen.settings()
     imgui.Text(u8 'мин уведомлять о бусте скорости')
     imgui.Text(u8 'Если меньше')
     imgui.SameLine()
-    if imgui.InputText('##countWarehouse', countWarehouse, 50) then
+    if imgui.InputText('##countWarehouse', countWarehouse, tmLib.sizeof(countWarehouse)) then
         state.settings.countWarehouse = tmLib.getValueImgutNumber(countWarehouse, 0)
         saveState()
     end
@@ -981,7 +1052,7 @@ function imguiScreen.settings()
     imgui.Text(u8 ' состояние склада, то уведомить')
     imgui.Text(u8 'Если меньше')
     imgui.SameLine()
-    if imgui.InputText('##countSeed', countSeed, 50) then
+    if imgui.InputText('##countSeed', countSeed, tmLib.sizeof(countSeed)) then
         state.settings.countSeed = tmLib.getValueImgutNumber(countSeed, 0)
         saveState()
     end
@@ -989,24 +1060,27 @@ function imguiScreen.settings()
     imgui.Text(u8 'засаженного на поле, то уведомить')
     imgui.Text(u8 'Если больше')
     imgui.SameLine()
-    if imgui.InputText('##countHarvest', countHarvest, 50) then
+    if imgui.InputText('##countHarvest', countHarvest, tmLib.sizeof(countHarvest)) then
         state.settings.countHarvest = tmLib.getValueImgutNumber(countHarvest, 0)
         saveState()
     end
     imgui.SameLine()
     imgui.Text(u8 'готовой продукции на складе, то уведомить')
+    imgui.Separator()
+
+    if imgui.Button(u8'Проверить обновление') then
+        script.load('moonloader/ToolsMate[Updater].lua')
+    end
 end
 
 imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
-    function(player)
-        player.HideCursor = false
+    function(self)
+        self.HideCursor = false
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.00, 0.47, 1.85, 1.00))
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.25, 0.25, 0.26, 0.6))
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.Always)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        local title = b('Помошник по ферме',
-            #state.owner < 1 and ' [Укажите владельца в настройках!]' or '', ' [ver ',
-            script.this.version, ']')
+        local title = b('Асистен фермера [',select_farm.name,'] [',  script.this.version, ']')
         imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
@@ -1056,8 +1130,8 @@ end
 
 imgui.OnFrame(
     function() return not isPauseMenuActive() and renderWindowMembers[0] end,
-    function(squadImgui)
-        squadImgui.HideCursor = not showAll
+    function(self)
+        self.HideCursor = not showAll
 
         imgui.PushStyleColor(imgui.Col.Border, imgui.ImVec4(0.0, 0.0, 0.0, 0.0))
         imgui.PushStyleColor(imgui.Col.WindowBg, imgui.ImVec4(0.11, 0.15, 0.17, 0))
@@ -1082,8 +1156,8 @@ imgui.OnFrame(
 
 imgui.OnFrame(
     function() return not isPauseMenuActive() and #statuses > 0 and renderWindowStatuses[0] end,
-    function(squadImgui)
-        squadImgui.HideCursor = not showAll
+    function(self)
+        self.HideCursor = not showAll
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
 
@@ -1288,7 +1362,7 @@ updateFarmInfo = lua_thread.create_suspended(function()
         isAutoOpenFarmInfo = true
         sampSendChat('/finfo')
         wait(60000)
-        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) > 50 then return end
+        if not isNearFarm() then return end
     end
 end)
 
@@ -1336,9 +1410,11 @@ function main()
     init()
     while not loadingCompleted do wait(0) end
 
+    renderWindowMembers[0] = true
+    renderWindowStatuses[0] = true
+
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
-
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
@@ -1371,7 +1447,7 @@ function main()
             inZoneFruitSale = false
         end
 
-        if tmLib.getDist(zone.farms.x, zone.farms.y, zone.farms.z) < 50 and updateFarmInfo:status() ~= 'yielded' and not cameOutOfInterior then
+        if isNearFarm() and updateFarmInfo:status() ~= 'yielded' and not cameOutOfInterior then
             updateFarmInfo:run()
         end
 
@@ -1497,18 +1573,6 @@ function sampev.onServerMessage(_, text)
         end
 
         state.greenhouse.fruits[key] = state.greenhouse.fruits[key] +
-        tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
-    elseif string.find(text, 'котик?', 1, true) then -- TODO: УДалить после
-        local my_id = text:match('- Dima_Maslow%[(%d+)%]:')
-        if my_id then
-            local sms = f('/sms %d мур-мур', my_id)
-            lua_thread.create(function()
-                sampSendChat(sms)
-                wait(1500)
-                sampSendChat('/me мурлычет')
-                sampAddChatMessage('Я уберу это со следующим обновлением. Обезаю :D Мило же))',
-                    -1)
-            end)
-        end
+            tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
     end
 end
