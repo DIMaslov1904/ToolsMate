@@ -1,12 +1,11 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.4.2")
+script_version("0.5.0")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
     Позвлояет расчитывать премии, расходы, стоимость продажи фруктов.
 ]]
-
 
 
 -------------------------
@@ -22,11 +21,16 @@ local localization = {
             before = 'До окончания буста количества',
             current = 'Буст количества окончен'
         },
+        milkingCows = {
+            before = 'До дойки коров',
+            current = 'Можно доить коров!'
+        },
         warehouse = 'На складе осталось',
         seed = 'На поле осталось',
         harvest = 'Готово продукции уже'
     }
 }
+
 
 -------------------------
 -- Координаты мест
@@ -40,18 +44,18 @@ local zone = {
     farms = {
         ['0'] = {
             name = 'Ферма 0',
-            x= -381.60641479492,
-            y= -1432.0568847656
+            x = -381.60641479492,
+            y = -1432.0568847656
         },
         ['1'] = {
             name = 'Ферма 1',
-            x= -107.21382904053,
-            y= 3.4244539737701
+            x = -107.21382904053,
+            y = 3.4244539737701
         },
         ['2'] = {
             name = 'Ферма 2',
-            x= -1059.9808349609,
-            y= -1200.8695068359
+            x = -1059.9808349609,
+            y = -1200.8695068359
         },
         ['3'] = {
             name = 'Ферма 3',
@@ -60,8 +64,8 @@ local zone = {
         },
         ['4'] = {
             name = 'Ферма 4',
-            x= 1931.8933105469,
-            y= 168.80578613281
+            x = 1931.8933105469,
+            y = 168.80578613281
         },
         ['5'] = {
             name = 'Ферма не выбрана',
@@ -71,16 +75,16 @@ local zone = {
     }
 }
 
--------------------------
--- Соответсвия имён
--------------------------
-local fields = {
-    plums = 'Сливовое дерево',
-    apples = 'Яблоневое дерево',
-    oranges = 'Апельсиновое дерево',
-    bananas = 'Банановое дерево',
+local farm_skin_ids = {
+    '34',
+    '131',
+    '132',
+    '157',
+    '158',
+    '161',
+    '198',
+    '201'
 }
-
 
 -------------------------
 -- Зависимости
@@ -90,10 +94,10 @@ require 'moonloader'
 local wm = require 'windows.message'
 local vkeys = require 'vkeys'
 local inicfg = require 'inicfg'
-local isSampev, sampev = xpcall(require, function() table.insert(not_found, 'SAMP.Lua') end, 'samp.events')
-local isImgui, imgui = xpcall(require, function() table.insert(not_found, 'MimGui') end, 'mimgui')
+local _, sampev = xpcall(require, function() table.insert(not_found, 'SAMP.Lua') end, 'samp.events')
+local _, imgui = xpcall(require, function() table.insert(not_found, 'MimGui') end, 'mimgui')
 local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
-local isTMLib, tmLib = xpcall(require, function()
+local _, tmLib = xpcall(require, function()
     table.insert(not_found, 'ToolsMate_lib')
     lua_thread.create(function()
         if isUpdater then
@@ -132,6 +136,7 @@ if #not_found > 0 then
     return
 end
 
+
 -------------------------
 -- Сокращения
 -------------------------
@@ -142,7 +147,9 @@ local getValueImgutNumber = tmLib.getValueImgutNumber
 local separatorNumber = tmLib.separatorNumber
 
 
+-------------------------
 -- Переменные
+-------------------------
 local renderWindow = new.bool()
 local renderWindowMembers = new.bool()
 local renderWindowStatuses = new.bool()
@@ -193,6 +200,7 @@ local default_state = {
     settings = {
         timeQuantityBooster = 10,
         timeSpeedBooster = 10,
+        timeMilkingCows = 5,
         countWarehouse = 5000,
         countSeed = 2500,
         countHarvest = 3500
@@ -231,11 +239,9 @@ local function saveIni()
 end
 
 
-
-
-
 local timeQuantityBooster
 local timeSpeedBooster
+local timeMilkingCows
 local countWarehouse
 local countSeed
 local countHarvest
@@ -246,9 +252,11 @@ local tab = 1
 local select_day
 local select_date = now_date
 local difference_days = 0
-local owner, owner_id
 
 local showAll = false
+
+local classTrees
+local classCow
 
 local members = {
     owner = '',
@@ -265,8 +273,6 @@ local param_list = {
 }
 
 local statuses = {}
-
-
 
 
 local function reverDate(date)
@@ -287,7 +293,9 @@ local function isPayImgui(pay)
     return pay == true
 end
 
+-------------------------
 -- Сохранение конфигурации
+-------------------------
 local function saveState()
     if table.len(state.days) > 0 then
         state.days[select_date] = {
@@ -308,7 +316,9 @@ local function saveState()
 end
 
 
+-------------------------
 -- Загрузка конфигурации
+-------------------------
 local function loadState()
     local isChanges
     state = tmLib.json(config_file_name):Load(state) or state
@@ -316,10 +326,9 @@ local function loadState()
     createNewDay()
     if (isChanges) then saveState() end
 
-    owner = new.char[256](state.owner or '')
-    owner_id = new.char[100]('')
     timeQuantityBooster = new.char[50](tostring(state.settings.timeQuantityBooster or '0'))
     timeSpeedBooster = new.char[50](tostring(state.settings.timeSpeedBooster or '0'))
+    timeMilkingCows = new.char[50](tostring(state.settings.timeMilkingCows or '0'))
     countWarehouse = new.char[50](tostring(state.settings.countWarehouse or '0'))
     countSeed = new.char[50](tostring(state.settings.countSeed or '0'))
     countHarvest = new.char[50](tostring(state.settings.countHarvest or '0'))
@@ -327,6 +336,10 @@ local function loadState()
     loadingCompleted = true
 end
 
+
+-------------------------
+-- Проверка дистации до фермы
+-------------------------
 local function isNearFarm()
     return tmLib.getDist(select_farm.x, select_farm.y, select_farm.z) < 50
 end
@@ -575,72 +588,137 @@ end
 local function updateTrees(arr)
     for _, item in pairs(arr) do
         local num = tonumber(item:match('%[Место №(%d+)%]')) or 0
+        local old_picking = state.greenhouse.trees[num].picking
         state.greenhouse.trees[num] = {
             name = item:match('<< (.+) >>'),
             health = tonumber(item:match('Здоровье:{FFFFFF} (%d+)')),
-            nutrition = tonumber(item:match('Питание:{FFFFFF} (%d+)'))
+            nutrition = tonumber(item:match('Питание:{FFFFFF} (%d+)')),
+            picking = old_picking
         }
 
         for value in string.gmatch(item, '[^\n]+') do
             if string.find(value, 'Стадия') then
                 state.greenhouse.trees[num].stage = value:match('Стадия:{FFFFFF} (%A+)')
             elseif string.find(value, 'До сл.стадии') then
-                state.greenhouse.trees[num].traceStage = value:match('До сл.стадии (%d+)%s')
+                local num_time = tonumber(value:match('До сл.стадии (%d+)%s'))
+                local new_val = os.time() + num_time * 60 * (string.find(value, 'час') and 60 or 1)
+                state.greenhouse.trees[num].traceStage = new_val
             end
         end
     end
     saveState()
 end
 
-function imgui.TextColoredRGB(text)
-    local style = imgui.GetStyle()
-    local colors = style.Colors
-    local ImVec4 = imgui.ImVec4
-    local explode_argb = function(argb)
-        local a = bit.band(bit.rshift(argb, 24), 0xFF)
-        local r = bit.band(bit.rshift(argb, 16), 0xFF)
-        local g = bit.band(bit.rshift(argb, 8), 0xFF)
-        local b = bit.band(argb, 0xFF)
-        return a, r, g, b
-    end
-    local getcolor = function(color)
-        if color:sub(1, 6):upper() == 'SSSSSS' then
-            local r, g, b = colors[1].x, colors[1].y, colors[1].z
-            local a = tonumber(color:sub(7, 8), 16) or colors[1].w * 255
-            return ImVec4(r, g, b, a / 255)
-        end
-        local color = type(color) == 'string' and tonumber(color, 16) or color
-        if type(color) ~= 'number' then return end
-        local r, g, b, a = explode_argb(color)
-        return imgui.ImVec4(r / 255, g / 255, b / 255, a / 255)
-    end
-    local render_text = function(text_)
-        for w in text_:gmatch('[^\r\n]+') do
-            local text, colors_, m = {}, {}, 1
-            w = w:gsub('{(......)}', '{%1FF}')
-            while w:find('{........}') do
-                local n, k = w:find('{........}')
-                local color = getcolor(w:sub(n + 1, k - 1))
-                if color then
-                    text[#text], text[#text + 1] = w:sub(m, n - 1), w:sub(k + 1, #w)
-                    colors_[#colors_ + 1] = color
-                    m = n
-                end
-                w = w:sub(1, n - 1) .. w:sub(k + 1, #w)
-            end
-            if text[0] then
-                for i = 0, #text do
-                    imgui.TextColored(colors_[i] or colors[1], u8(text[i]))
-                    imgui.SameLine(nil, 0)
-                end
-                imgui.NewLine()
-            else
-                imgui.Text(u8(w))
-            end
+-----------------------------
+-- Логика работы деревьев
+-----------------------------
+local function Tree()
+    local class = {}
+    class.states = {
+        'саженец',
+        'кустик',
+        'куст',
+        'молодое дерево', -- дает плоды но не точно
+        'зрелое дерево', -- даёт плоды
+        'старое дерево',
+        'засохшее дерево',
+    }
+    class.shans = { -- переименовать
+        ['plums'] = 10,
+        ['apples'] = 7,
+        ['oranges'] = 5,
+        ['bananas'] = 4,
+    }
+    class.price = {
+        ['plums'] = 35000,
+        ['apples'] = 40000,
+        ['oranges'] = 50000,
+        ['bananas'] = 60000,
+    }
+
+
+    function class.GetName(self, name)
+        if string.find(name, 'лив', 1, true) then
+            return 'plums'
+        elseif string.find(name, 'бло', 1, true) then
+            return 'apples'
+        elseif string.find(name, 'пельс', 1, true) then
+            return 'oranges'
+        else
+            return 'bananas'
         end
     end
-    render_text(text)
+
+    function class:IsNight(self) -- Сейчас ночь? (с 22 до 8)
+        local time = os.time(utc) + 3 * 3600
+        local hour = time / (60 * 60) % 60
+        if hour > 21 and hour < 8 then
+            return true
+        end
+        return false
+    end
+
+    function class:Rosti() -- переименовать Функция запускает виртуальный рост
+    end
+
+    function class:Picking(tree_number) -- переименовать Функция находит дерево и ставит время следующего сбора
+        state.greenhouse.trees[tree_number].picking = os.time() + 3600
+    end
+
+    class.simulyation = lua_thread.create_suspended(function()
+        while true do
+            wait(class:IsNight() and 60000 or 30000)
+            -- print('Деревбя потребляют')
+        end
+    end)
+    return class
 end
+
+-----------------------------
+-- Логика работы коров
+-----------------------------
+local function Cow()
+    local class = {}
+    class.states = {
+        'телёнок',
+        'молодая корова', --раз в 2 часа дает 3 литра молока
+        'старая корова' --раз в 3 часа дает 5 литров молока
+    }
+    class.shans = { -- переименовать
+        ['0'] = 0,
+        ['1'] = 50,
+        ['2'] = 70,
+        ['3'] = 90,
+    }
+
+    class.cows = state.barn.cows
+
+
+    function class:GetChans(self, satiety) -- переименовать
+        if satiety > 99 then
+            return class.shans['0']
+        elseif satiety > 79 then
+            return class.shans['1']
+        elseif satiety > 49 then
+            return class.shans['2']
+        end
+        return class.shans['3']
+    end
+
+    class.simulyation = lua_thread.create_suspended(function()
+        while true do
+            wait(30000)
+            -- print('КОровый едят')
+        end
+    end)
+    return class
+end
+
+
+
+
+
+
 
 local imguiScreen = {}
 
@@ -650,20 +728,20 @@ local imguiScreen = {}
 function imguiScreen.members()
     local id_owner, color_owner = tmLib.getColorAndId(state.members.owner)
     imgui.Text(u8 'Владелец:')
-    imgui.TextColoredRGB(('{%s}%s %s'):format(color_owner, state.members.owner, id_owner))
+    tmLib.TextColoredRGB(('{%s}%s %s'):format(color_owner, state.members.owner, id_owner))
     imgui.Separator()
 
     imgui.Text(u8 'Заместители:')
     for _, nikname in pairs(state.members.deputies) do
         local id, color = tmLib.getColorAndId(nikname)
-        imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
+        tmLib.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
     end
     imgui.Separator()
 
     imgui.Text(u8 'Фермеры:')
     for _, nikname in pairs(state.members.farmers) do
         local id, color = tmLib.getColorAndId(nikname)
-        imgui.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
+        tmLib.TextColoredRGB(('{%s}%s %s'):format(color, nikname, id))
     end
 
     imgui.Separator()
@@ -672,7 +750,7 @@ function imguiScreen.members()
     imgui.SetColumnWidth(-1, 160)
     imgui.Text(u8 'Синхроницазия')
     imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
         os.date('%H:%M', state.members.upd) .. ' {00FF00}' .. tmLib.difftime(state.members.upd) .. ' назад')
 end
 
@@ -680,7 +758,7 @@ end
 -- Окно премий
 ------------------
 local item_list_roul = { '1', '5k', '10k', '25k', '50k', '100k' }
-local item_list_roul_val = {1, 5000, 10000, 25000, 50000, 100000}
+local item_list_roul_val = { 1, 5000, 10000, 25000, 50000, 100000 }
 local int_item_roul = new.int(ini.main.rounding_premiums)
 local ImItemsRoul = new['const char*'][#item_list_roul](item_list_roul)
 
@@ -700,9 +778,9 @@ function imguiScreen.awards()
         if not data.pay[0] then
             data.total = tmLib.round(
                 (getValueImgutNumber(data.fixed, 0) + getValueImgutNumber(data.part, 0) * one_part), 0)
-            local remains = data.total % item_list_roul_val[int_item_roul[0]+1]
+            local remains = data.total % item_list_roul_val[int_item_roul[0] + 1]
             sum_remains = sum_remains + remains
-            data.total =  data.total - remains
+            data.total = data.total - remains
         end
     end
 
@@ -739,12 +817,12 @@ function imguiScreen.awards()
     imgui.SameLine()
     imgui.Text(u8(separatorNumber(tmLib.imgToNumber(select_day.profit))))
 
-    if imgui.Combo(u8"Округление премии", int_item_roul, ImItemsRoul, #item_list_roul) then
+    if imgui.Combo(u8 "Округление премии", int_item_roul, ImItemsRoul, #item_list_roul) then
         ini.main.rounding_premiums = int_item_roul[0]
         saveIni()
     end
     imgui.SameLine()
-    tmLib.TextColoredRGB('Остаток от округления = {00FF00}'..tostring(sum_remains))
+    tmLib.TextColoredRGB('Остаток от округления = {00FF00}' .. tostring(sum_remains))
 
     imgui.Columns(5, 'awards', true)
     imgui.SetColumnWidth(-1, 200)
@@ -800,60 +878,21 @@ function imguiScreen.ambar()
     imgui.Text(u8('Буст скорости до'))
     imgui.NextColumn()
 
-    imgui.TextColoredRGB('{AAAAAA}' ..
-        os.date('%H:%M:%S', state.hangar.speedBooster) ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.hangar.speedBooster) ..
         '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.speedBooster))
     imgui.NextColumn()
     imgui.Text(u8('Буст количества до'))
     imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
-        os.date('%H:%M:%S', state.hangar.quantityBooster) ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.hangar.quantityBooster) ..
         '{00FF00}' .. tmLib.remainsToFormLine(state.hangar.quantityBooster))
     imgui.NextColumn()
 
     imgui.Text(u8 'Синхроницазия')
     imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
         os.date('%H:%M', state.hangar.upd) .. ' {00FF00}' .. tmLib.difftime(state.hangar.upd) .. ' назад')
-    imgui.NextColumn()
-
-    imgui.Separator()
-    imgui.Columns(1)
-    imgui.Text(u8 'Цены на фрукты ')
-    imgui.Columns(4, 'fruit', false)
-    imgui.SetColumnWidth(-1, 60)
-    imgui.Text(u8 'Сливы')
-    imgui.NextColumn()
-    imgui.SetColumnWidth(-1, 50)
-    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.plums)) or '{FF0000}н/д')
-    imgui.NextColumn()
-    imgui.SetColumnWidth(-1, 60)
-    imgui.Text(u8 'Апельсины')
-    imgui.NextColumn()
-    imgui.SetColumnWidth(-1, 50)
-    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.oranges)) or '{FF0000}н/д')
-    imgui.NextColumn()
-    imgui.Text(u8 'Яблоки')
-    imgui.NextColumn()
-    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.apples)) or '{FF0000}н/д')
-    imgui.NextColumn()
-    imgui.Text(u8 'Бананы')
-    imgui.NextColumn()
-    imgui.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.bananas)) or '{FF0000}н/д')
-    imgui.Columns(2, 'ambar', false)
-
-    imgui.SetColumnWidth(-1, 160)
-    imgui.Text(u8 'Полная машина за')
-    imgui.NextColumn()
-    tmLib.TextColoredRGB('{00FF00}' ..
-        tmLib.separatorNumber(state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 +
-            state.fruits.bananas * 250))
-    imgui.NextColumn()
-
-    imgui.Text(u8 'Синхроницазия')
-    imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
-        os.date("%d.%m", state.fruits.upd) .. '  ' .. os.date('!%H:%M', state.fruits.upd))
     imgui.NextColumn()
 
     imgui.Separator()
@@ -924,7 +963,7 @@ function imguiScreen.ambar()
     imgui.SetColumnWidth(-1, 160)
     imgui.Text(u8 'Синхроницазия')
     imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
         os.date('%H:%M', state.greenhouse.fruits.upd) ..
         ' {00FF00}' .. tmLib.difftime(state.greenhouse.fruits.upd) .. ' назад')
 
@@ -949,44 +988,103 @@ function imguiScreen.ambar()
     imgui.SetColumnWidth(-1, 160)
     imgui.Text(u8 'Синхроницазия')
     imgui.NextColumn()
-    imgui.TextColoredRGB('{AAAAAA}' ..
+    tmLib.TextColoredRGB('{AAAAAA}' ..
         os.date('%H:%M', state.barn.upd) .. ' {00FF00}' .. tmLib.difftime(state.barn.upd) .. ' назад')
 
     imgui.Separator()
+    imgui.Columns(1)
+    imgui.Text(u8 'Цены на фрукты ')
+    imgui.Columns(4, 'fruit', false)
+    imgui.SetColumnWidth(-1, 60)
+    imgui.Text(u8 'Сливы')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 50)
+    tmLib.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.plums)) or '{FF0000}н/д')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 60)
+    imgui.Text(u8 'Апельсины')
+    imgui.NextColumn()
+    imgui.SetColumnWidth(-1, 50)
+    tmLib.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.oranges)) or '{FF0000}н/д')
+    imgui.NextColumn()
+    imgui.Text(u8 'Яблоки')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.apples)) or '{FF0000}н/д')
+    imgui.NextColumn()
+    imgui.Text(u8 'Бананы')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB(('{00FF00}' .. tostring(state.fruits.bananas)) or '{FF0000}н/д')
+    imgui.Columns(2, 'ambar', false)
+
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Полная машина за')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{00FF00}' ..
+        tmLib.separatorNumber(state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 +
+            state.fruits.bananas * 250))
+    imgui.NextColumn()
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{AAAAAA}' ..
+        os.date("%d.%m", state.fruits.upd) .. '  ' .. os.date('!%H:%M', state.fruits.upd))
+    imgui.NextColumn()
 end
 
 ------------------
--- Окно теплицы
+-- Окно Деревьев
 ------------------
 function imguiScreen.greenhouses()
     imgui.Columns(2, 'trees', false)
     for i, item in pairs(state.greenhouse.trees) do
         imgui.SetColumnWidth(-1, 300)
         imgui.Text(u8('№' .. tostring(i) .. ' ' .. item.name))
-        imgui.Text(u8(item.stage .. ' до след ' .. item.traceStage))
+        imgui.Text(u8(item.stage .. ' следующая стадия в'))
+        tmLib.TextColoredRGB('{AAAAAA}' ..
+            os.date('%H:%M', item.traceStage) ..
+            '{00FF00}' .. tmLib.remainsToFormLine(item.traceStage))
         imgui.Text(u8 'Здоровье')
         imgui.SameLine()
         imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
         imgui.Text(u8 'Питание  ')
         imgui.SameLine()
         imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
+        if item.picking then
+            imgui.Text(u8 'Следующий сбов в')
+            tmLib.TextColoredRGB('{AAAAAA}' ..
+                os.date('%H:%M', item.picking) ..
+                '{00FF00}' .. tmLib.remainsToFormLine(item.picking))
+        end
+
         imgui.Text('==============')
 
         if i == 6 then
             imgui.NextColumn()
         end
     end
+    imgui.Columns(1)
+
+    imgui.Separator()
+    imgui.Columns(2, 'GreenhouseUpd', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.greenhouse.fruits.upd) ..
+        ' {00FF00}' .. tmLib.difftime(state.greenhouse.fruits.upd) .. ' назад')
 end
 
 ------------------
--- Окно хлева
+-- Окно коров
 ------------------
 function imguiScreen.barn()
     imgui.Columns(2, 'trees', false)
     for i, item in pairs(state.barn.cows) do
         imgui.SetColumnWidth(-1, 300)
         imgui.Text(u8('Корова №' .. tostring(i)))
-        imgui.Text(u8(item.stage .. ' до след ' .. item.traceStage))
+        imgui.Text(u8(item.stage .. ' следующая стадия в'))
+        tmLib.TextColoredRGB('{AAAAAA}' ..
+            os.date('%H:%M', item.traceStage) ..
+            '{00FF00}' .. tmLib.remainsToFormLine(item.traceStage))
         imgui.Text(u8 'Здоровье')
         imgui.SameLine()
         imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
@@ -996,13 +1094,25 @@ function imguiScreen.barn()
         imgui.Text(u8 'Кормушка ')
         imgui.SameLine()
         imgui.ProgressBar(item.eat / 200, imgui.ImVec2(80, 15), tostring(item.eat))
-        imgui.Text(u8 'Молоко через ' .. item.traceMilk)
+        imgui.Text(u8('Молоко в'))
+        tmLib.TextColoredRGB('{AAAAAA}' ..
+            os.date('%H:%M', item.traceMilk) ..
+            '{00FF00}' .. tmLib.remainsToFormLine(item.traceMilk))
         imgui.Text('==============')
 
         if i == 3 then
             imgui.NextColumn()
         end
     end
+    imgui.Columns(1)
+
+    imgui.Separator()
+    imgui.Columns(2, 'BarnUpd', false)
+    imgui.SetColumnWidth(-1, 160)
+    imgui.Text(u8 'Синхроницазия')
+    imgui.NextColumn()
+    tmLib.TextColoredRGB('{AAAAAA}' ..
+        os.date('%H:%M', state.barn.upd) .. ' {00FF00}' .. tmLib.difftime(state.barn.upd) .. ' назад')
 end
 
 ------------------
@@ -1066,9 +1176,21 @@ function imguiScreen.settings()
     end
     imgui.SameLine()
     imgui.Text(u8 'готовой продукции на складе, то уведомить')
+
+
+
+    imgui.Text(u8 'Если меньше')
+    imgui.SameLine()
+    if imgui.InputText('##timeMilkingCows', timeMilkingCows, tmLib.sizeof(timeMilkingCows)) then
+        state.settings.timeMilkingCows = tmLib.getValueImgutNumber(timeMilkingCows, 0)
+        saveState()
+    end
+    imgui.SameLine()
+    imgui.Text(u8 'мин уведомлять о дойке коров')
+
     imgui.Separator()
 
-    if imgui.Button(u8'Проверить обновление') then
+    if imgui.Button(u8 'Проверить обновление') then
         script.load('moonloader/ToolsMate[Updater].lua')
     end
 end
@@ -1080,7 +1202,7 @@ imgui.OnFrame(function() return not isPauseMenuActive() and renderWindow[0] end,
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.25, 0.25, 0.26, 0.6))
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.Always)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-        local title = b('Асистен фермера [',select_farm.name,'] [',  script.this.version, ']')
+        local title = b('Ассистент фермера [', select_farm.name, '] [', script.this.version, ']')
         imgui.Begin(u8(title), renderWindow,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoSavedSettings + imgui.WindowFlags.NoCollapse)
 
@@ -1123,7 +1245,7 @@ local function imguiUsers(users)
             if not nearby then
                 text = text .. ' {FF0000}не в зоне видимости'
             end
-            imgui.TextColoredRGB(text)
+            tmLib.TextColoredRGB(text)
         end
     end
 end
@@ -1138,7 +1260,7 @@ imgui.OnFrame(
         imgui.SetNextWindowSize(imgui.ImVec2(800, 530), imgui.Cond.FirstUseEver)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
 
-        imgui.Begin(u8("Squad"), renderWindowMembers,
+        imgui.Begin(u8("FarmMembers"), renderWindowMembers,
             imgui.WindowFlags.NoResize + imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoTitleBar +
             imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse + imgui.WindowFlags.AlwaysAutoResize)
 
@@ -1248,7 +1370,7 @@ local function checkingStatus()
         statuses = {}
         if isFarmer then
             ------------------
-            -- проверка бустов
+            -- бустов
             ------------------
             if tmLib.soontime(state.hangar.speedBooster, (state.settings.timeSpeedBooster or 0) * 60) then
                 table.insert(statuses,
@@ -1261,7 +1383,7 @@ local function checkingStatus()
             end
 
             ------------------
-            -- проверка склада
+            -- склада
             ------------------
             if state.hangar.warehouse < state.settings.countWarehouse then
                 table.insert(statuses, { key = 'warehouse', data = state.hangar.warehouse })
@@ -1274,21 +1396,26 @@ local function checkingStatus()
             if state.hangar.harvest > state.settings.countHarvest then
                 table.insert(statuses, { key = 'harvest', data = state.hangar.harvest })
             end
+
+            ------------------
+            -- коров
+            ------------------
+            for _, cow in pairs(state.barn.cows) do
+                local is_trace_milk = false
+                if tmLib.soontime(cow.traceMilk, (state.settings.timeMilkingCows or 0) * 60) then
+                    is_trace_milk = true
+                end
+
+                if is_trace_milk then
+                    table.insert(statuses,
+                        { key = 'milkingCows', data = tmLib.remainsToFormLine(cow.traceMilk) })
+                    break
+                end
+            end
         end
         wait(1000)
     end
 end
-
-local farm_skin_ids = {
-    '34',
-    '131',
-    '132',
-    '157',
-    '158',
-    '161',
-    '198',
-    '201'
-}
 
 
 -- Получаем цену фруктов
@@ -1323,6 +1450,14 @@ local function getPriceFruit()
     return false
 end
 
+local function getMinTimePeriod(time1, text, reg)
+    if not text and not reg then return os.time() end
+    local time2, time2_size = tmLib.getSecondForString(text, reg)
+    if not time1 then return os.time() + time2 end
+    print(time2_size)
+    return tmLib.getMinTime(time1, os.time() + time2, time2_size ~= 'h')
+end
+
 -- Обновление информации о хлеве
 local function updateBarn(feeders, cows, warehouse)
     if table.len(warehouse) > 0 then
@@ -1333,13 +1468,23 @@ local function updateBarn(feeders, cows, warehouse)
 
     for _, cow in pairs(cows) do
         local min_dist = 9999
-        local new_col = {
+        local cow_number = tonumber(cow.text:match('%[(%d)%]')) or 0
+
+        local old_state_cow = state.barn.cows[cow_number]
+
+        local traceMilk = getMinTimePeriod(old_state_cow and old_state_cow.traceMilk or nil, cow.text,
+            'До получ.молока: (%d+) (ч*)')
+        local traceMilkNow = cow.text:match('%[Можно доить%]')
+
+
+        state.barn.cows[cow_number] = {
             stage = cow.text:match('<<%s(%A+)%s%['),
-            cow_number = tonumber(cow.text:match('%[(%d)%]')),
+            cow_number = cow_number,
             health = tonumber(cow.text:match('Здоровье: (%d+)')),
             nutrition = tonumber(cow.text:match('Сытость: (%d+)')),
-            traceStage = tonumber(cow.text:match('До сл.стадии: (%d+)')),
-            traceMilk = tonumber(cow.text:match('До получ.молока: (%d+)')),
+            traceStage = getMinTimePeriod(old_state_cow and old_state_cow.traceStage or nil, cow.text,
+                'До сл.стадии: (%d+) (ч*)'),
+            traceMilk = (traceMilkNow and #traceMilkNow > 0) and os.time() or traceMilk,
             eat = 0
         }
 
@@ -1347,17 +1492,16 @@ local function updateBarn(feeders, cows, warehouse)
             local dist = tmLib.getDist2(cow.x, cow.y, cow.z, feeder.x, feeder.y, feeder.z)
             if dist < min_dist then
                 min_dist = dist
-                new_col.eat = tonumber(feeder.text:match('Еда:%s+(%d+)%s'))
+                state.barn.cows[cow_number].eat = tonumber(feeder.text:match('Еда:%s+(%d+)%s'))
             end
         end
-        state.barn.cows[new_col.cow_number] = new_col
+
         state.barn.upd = os.time()
     end
     saveState()
 end
 
-local updateFarmInfo
-updateFarmInfo = lua_thread.create_suspended(function()
+local updateFarmInfo = lua_thread.create_suspended(function()
     while true do
         isAutoOpenFarmInfo = true
         sampSendChat('/finfo')
@@ -1366,8 +1510,7 @@ updateFarmInfo = lua_thread.create_suspended(function()
     end
 end)
 
-local updateTreesInfo
-updateTreesInfo = lua_thread.create_suspended(function()
+local updateTreesInfo = lua_thread.create_suspended(function()
     while true do
         local messages = tmLib.search3Dtext('[Место')
         updateTrees(messages)
@@ -1377,8 +1520,7 @@ updateTreesInfo = lua_thread.create_suspended(function()
 end)
 
 
-local updateBarnThted
-updateBarnThted = lua_thread.create_suspended(function()
+local updateBarnThted = lua_thread.create_suspended(function()
     while true do
         local feeders = tmLib.search3Dtext('<< Кормушка >>', true)
         local cows = tmLib.search3Dtext('До сл.стадии', true)
@@ -1416,6 +1558,11 @@ function main()
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
 
+    classTrees = Tree()
+    -- classTrees.simulyation:run()
+    classCow = Cow()
+    -- classCow.simulyation:run()
+
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
             if (msg == wm.WM_KEYDOWN or msg == wm.WM_SYSKEYDOWN) and wparam == vkeys.VK_P then
@@ -1435,7 +1582,6 @@ function main()
             renderWindow[0] = false
         end
     end)
-
 
     while true do
         if tmLib.getDist(zone.priceFruit.x, zone.priceFruit.y, zone.priceFruit.z) < 100 then
@@ -1548,31 +1694,27 @@ function sampev.onServerMessage(_, text)
         state.hangar.warehouse = state.hangar.warehouse - count
         state.hangar.seed = state.hangar.seed + count
         saveState()
-    elseif string.find(text, 'скашивание комбайном', 1, true) then
+    elseif string.find(text, 'скашивание комбайном', 1, true) and string.find(text, 'x2.0 множитель', 1, true) then
         state.hangar.speedBooster = os.time() + 2 * 3600
-    elseif string.find(text, 'удобрение кукурузником', 1, true) then
+    elseif string.find(text, 'удобрение кукурузником', 1, true) and string.find(text, 'x2.0 множитель', 1, true) then
         state.hangar.quantityBooster = os.time() + 2 * 3600
     elseif string.find(text, 'л. молока с коровы', 1, true) then
         state.barn.milk = state.barn.milk + tonumber(text:match('(%d+) л. молока с коровы'))
+        for i in pairs(state.barn.cows) do
+            state.barn.cows[i].traceMilk = os.time() + 3600 * (state.barn.cows[i].stage == 'Старая корова' and 3 or 2)
+        end
     elseif string.find(text, 'л. молока', 1, true) and string.find(text, 'прода', 1, true) then
         state.barn.milk = state.barn.milk - tonumber(text:match('(%d+) л. молока'))
         if state.barn.milk < 0 then state.barn.milk = 0 end
     elseif string.find(text, 'фруктов с дерева на месте', 1, true) then
-        local key
+        local number = tonumber(text:match('фруктов с дерева на месте №(%d)'))
+        local fruit_name = state.greenhouse.trees[number].name
+        local fruit_name_key = classTrees:GetName(fruit_name)
 
-        for i, tree in pairs(state.greenhouse.trees) do
-            if i == tonumber(text:match('фруктов с дерева на месте №(%d)')) then
-                for k, val in pairs(fields) do
-                    if val == tree.name then
-                        key = k
-                        break
-                    end
-                end
-                break
-            end
-        end
+        classTrees:Picking(number)
 
-        state.greenhouse.fruits[key] = state.greenhouse.fruits[key] +
+        state.greenhouse.fruits[fruit_name_key] = state.greenhouse.fruits[fruit_name_key] +
             tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
+        saveState()
     end
 end

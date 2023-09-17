@@ -13,7 +13,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.1.6",
+        version = "0.2.0",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -65,11 +65,13 @@ end
 
 function lib.remainedtime(reference)
     if os.difftime(reference, os.time()) < 1 then return '0' end
-    local hour = math.floor(os.difftime(reference, os.time()) / (60 * 60))
+    local days = math.floor(os.difftime(reference, os.time()) / (24 * 60 * 60))
+    local hour = math.floor(os.difftime(reference, os.time()) / (60 * 60)) % 60
     local min = math.floor(os.difftime(reference, os.time()) / 60) % 60
     local sec = os.difftime(os.time(), reference) % 60
     local result = min .. ' мин'
     if hour > 0 then result = hour .. ' часов ' .. result end
+    if days > 0 then result = days .. ' дней ' .. result end
     if result == '0 мин' then result = sec..' сек' end
     return result
 end
@@ -113,6 +115,28 @@ end
 -- Получить сегодняшнюю дату
 function lib.getDate()
     return lib.datetime_str:sub(10, -1)
+end
+
+
+-- Получение времени в секундах из строки (мин/часы/сек)
+-- пример: tmLib.getSecondForString(cow.text, 'До сл.стадии: (%d+) (ч*)')
+function lib.getSecondForString(text, reg)
+    local time_text, hour, sec = text:match(reg)
+    if not time_text or #time_text < 1 then
+        return 0
+    end
+
+    return tonumber(time_text) * ((sec and #sec >0) and 1 or 60) * ((hour and #hour > 0) and 60 or 1) + 30, (hour and 'h' or sec and 's' or 'm')
+end
+
+-- Передаем 2 времени. Возращает минимальное. Если стоит toUpd то всегда возращаем time2
+function lib.getMinTime(time1, time2, toUpd)
+    local remaine = lib.remainedtime(time1)
+    local diff_time = os.difftime(time2, time1)
+    if remaine == '0' or diff_time < 0 or diff_time > 3599 or toUpd then
+        return time2
+    end
+    return time1
 end
 
 ------
