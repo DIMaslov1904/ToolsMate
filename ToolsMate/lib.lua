@@ -13,7 +13,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.2.0",
+        version = "0.2.1",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -126,7 +126,7 @@ function lib.getSecondForString(text, reg)
         return 0
     end
 
-    return tonumber(time_text) * ((sec and #sec >0) and 1 or 60) * ((hour and #hour > 0) and 60 or 1) + 30, (hour and 'h' or sec and 's' or 'm')
+    return tonumber(time_text) * ((sec and #sec >0) and 1 or 60) * ((hour and #hour > 0) and 60 or 1) + 30, ((hour and #hour > 0) and 'h' or (sec and #sec >0) and 's' or 'm')
 end
 
 -- Передаем 2 времени. Возращает минимальное. Если стоит toUpd то всегда возращаем time2

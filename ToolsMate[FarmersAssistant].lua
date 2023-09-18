@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.0")
+script_version("0.5.1")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -254,9 +254,6 @@ local select_date = now_date
 local difference_days = 0
 
 local showAll = false
-
-local classTrees
-local classCow
 
 local members = {
     owner = '',
@@ -588,19 +585,17 @@ end
 local function updateTrees(arr)
     for _, item in pairs(arr) do
         local num = tonumber(item:match('%[Место №(%d+)%]')) or 0
-        local old_picking = state.greenhouse.trees[num].picking
         state.greenhouse.trees[num] = {
             name = item:match('<< (.+) >>'),
             health = tonumber(item:match('Здоровье:{FFFFFF} (%d+)')),
             nutrition = tonumber(item:match('Питание:{FFFFFF} (%d+)')),
-            picking = old_picking
         }
 
         for value in string.gmatch(item, '[^\n]+') do
             if string.find(value, 'Стадия') then
                 state.greenhouse.trees[num].stage = value:match('Стадия:{FFFFFF} (%A+)')
             elseif string.find(value, 'До сл.стадии') then
-                local num_time = tonumber(value:match('До сл.стадии (%d+)%s'))
+                local num_time = tonumber(value:match('До сл.стадии (%d+)%s')) or 0
                 local new_val = os.time() + num_time * 60 * (string.find(value, 'час') and 60 or 1)
                 state.greenhouse.trees[num].traceStage = new_val
             end
@@ -609,116 +604,17 @@ local function updateTrees(arr)
     saveState()
 end
 
------------------------------
--- Логика работы деревьев
------------------------------
-local function Tree()
-    local class = {}
-    class.states = {
-        'саженец',
-        'кустик',
-        'куст',
-        'молодое дерево', -- дает плоды но не точно
-        'зрелое дерево', -- даёт плоды
-        'старое дерево',
-        'засохшее дерево',
-    }
-    class.shans = { -- переименовать
-        ['plums'] = 10,
-        ['apples'] = 7,
-        ['oranges'] = 5,
-        ['bananas'] = 4,
-    }
-    class.price = {
-        ['plums'] = 35000,
-        ['apples'] = 40000,
-        ['oranges'] = 50000,
-        ['bananas'] = 60000,
-    }
-
-
-    function class.GetName(self, name)
-        if string.find(name, 'лив', 1, true) then
-            return 'plums'
-        elseif string.find(name, 'бло', 1, true) then
-            return 'apples'
-        elseif string.find(name, 'пельс', 1, true) then
-            return 'oranges'
-        else
-            return 'bananas'
-        end
+local function treea_get_name(name)
+    if string.find(name, 'лив', 1, true) then
+        return 'plums'
+    elseif string.find(name, 'бло', 1, true) then
+        return 'apples'
+    elseif string.find(name, 'пельс', 1, true) then
+        return 'oranges'
+    else
+        return 'bananas'
     end
-
-    function class:IsNight(self) -- Сейчас ночь? (с 22 до 8)
-        local time = os.time(utc) + 3 * 3600
-        local hour = time / (60 * 60) % 60
-        if hour > 21 and hour < 8 then
-            return true
-        end
-        return false
-    end
-
-    function class:Rosti() -- переименовать Функция запускает виртуальный рост
-    end
-
-    function class:Picking(tree_number) -- переименовать Функция находит дерево и ставит время следующего сбора
-        state.greenhouse.trees[tree_number].picking = os.time() + 3600
-    end
-
-    class.simulyation = lua_thread.create_suspended(function()
-        while true do
-            wait(class:IsNight() and 60000 or 30000)
-            -- print('Деревбя потребляют')
-        end
-    end)
-    return class
 end
-
------------------------------
--- Логика работы коров
------------------------------
-local function Cow()
-    local class = {}
-    class.states = {
-        'телёнок',
-        'молодая корова', --раз в 2 часа дает 3 литра молока
-        'старая корова' --раз в 3 часа дает 5 литров молока
-    }
-    class.shans = { -- переименовать
-        ['0'] = 0,
-        ['1'] = 50,
-        ['2'] = 70,
-        ['3'] = 90,
-    }
-
-    class.cows = state.barn.cows
-
-
-    function class:GetChans(self, satiety) -- переименовать
-        if satiety > 99 then
-            return class.shans['0']
-        elseif satiety > 79 then
-            return class.shans['1']
-        elseif satiety > 49 then
-            return class.shans['2']
-        end
-        return class.shans['3']
-    end
-
-    class.simulyation = lua_thread.create_suspended(function()
-        while true do
-            wait(30000)
-            -- print('КОровый едят')
-        end
-    end)
-    return class
-end
-
-
-
-
-
-
 
 local imguiScreen = {}
 
@@ -1048,12 +944,6 @@ function imguiScreen.greenhouses()
         imgui.Text(u8 'Питание  ')
         imgui.SameLine()
         imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
-        if item.picking then
-            imgui.Text(u8 'Следующий сбов в')
-            tmLib.TextColoredRGB('{AAAAAA}' ..
-                os.date('%H:%M', item.picking) ..
-                '{00FF00}' .. tmLib.remainsToFormLine(item.picking))
-        end
 
         imgui.Text('==============')
 
@@ -1454,7 +1344,6 @@ local function getMinTimePeriod(time1, text, reg)
     if not text and not reg then return os.time() end
     local time2, time2_size = tmLib.getSecondForString(text, reg)
     if not time1 then return os.time() + time2 end
-    print(time2_size)
     return tmLib.getMinTime(time1, os.time() + time2, time2_size ~= 'h')
 end
 
@@ -1558,10 +1447,6 @@ function main()
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
 
-    classTrees = Tree()
-    -- classTrees.simulyation:run()
-    classCow = Cow()
-    -- classCow.simulyation:run()
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
@@ -1651,22 +1536,6 @@ function sampev.onSetInterior(interior)
 end
 
 function sampev.onServerMessage(_, text)
-    -- [18:51:10]  [Ферма]{FFFFFF} Зерновоз Irene_Nishimiya купила у фермы 1000 продукции за 55000 вирт
-    -- [18:51:11]  [Ферма]{FFFFFF} Зерновоз Irene_Nishimiya продала ферме 250 семян за 2500 вирт
-    -- [Ферма]{FFFFFF} Pater_Neofit разгрузил в амбар фермы 1000 единиц урожая из машины №2
-    -- [19:00:06]  [Ферма]{FFFFFF} El_Carton засеял на поле 2000 семян
-    -- [Ферма]{FFFFFF} Stephen_Thompson выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора урожая на 2 часа ))
-
-
-    --     [13:12:02]  [Подсказка]{FFFFFF} Используйте отображенную кнопку, находясь на поле, чтобы начать скашивание урожая
-    -- [13:12:28]  Вы начали скашивание комбайном {FFFFFF}(( Двигайтесь по красным меткам ))
-    -- [13:13:53]  [Ферма]{FFFFFF} Dima_Maslow выполнил скашивание комбайном {FFFFFF}(( x2.0 множитель к времени сбора
-
-
-    -- [Ферма]{FFFFFF} Irene_Nishimiya завершила скашивание травы для хлева
-    -- один стог это - 400
-
-
     if string.find(text, 'Работа на ферме начата', 1, true) then
         isFarmer = true
     elseif string.find(text, 'Рабочий день на ферме закончен', 1, true) then
@@ -1708,11 +1577,7 @@ function sampev.onServerMessage(_, text)
         if state.barn.milk < 0 then state.barn.milk = 0 end
     elseif string.find(text, 'фруктов с дерева на месте', 1, true) then
         local number = tonumber(text:match('фруктов с дерева на месте №(%d)'))
-        local fruit_name = state.greenhouse.trees[number].name
-        local fruit_name_key = classTrees:GetName(fruit_name)
-
-        classTrees:Picking(number)
-
+        local fruit_name_key = treea_get_name(state.greenhouse.trees[number].name)
         state.greenhouse.fruits[fruit_name_key] = state.greenhouse.fruits[fruit_name_key] +
             tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
         saveState()
