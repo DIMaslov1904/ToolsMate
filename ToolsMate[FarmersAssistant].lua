@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.2")
+script_version("0.5.3")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -1379,12 +1379,12 @@ local function updateBarn(feeders, cows, warehouse)
 
         local traceMilkReusl
 
-        if (not traceMilkNow or #traceMilk < 1) and (not traceMilkNow or #traceMilkNow < 1) then
+
+        if #(tostring(traceMilk)) < 1 and #traceMilkNow < 1 then
             traceMilkReusl = 0
         else
             traceMilkReusl = (traceMilkNow and #traceMilkNow > 0) and os.time() or traceMilk
         end
-
 
         state.barn.cows[cow_number] = {
             stage = cow.text:match('<<%s(%A+)%s%['),
@@ -1466,7 +1466,6 @@ function main()
 
     lua_thread.create(getIdsSkins)
     lua_thread.create(checkingStatus)
-
 
     addEventHandler("onWindowMessage", function(msg, wparam, lparam)
         if not sampIsCursorActive() then
