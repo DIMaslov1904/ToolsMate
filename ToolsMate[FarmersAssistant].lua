@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.1")
+script_version("0.5.2")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -985,9 +985,13 @@ function imguiScreen.barn()
         imgui.SameLine()
         imgui.ProgressBar(item.eat / 200, imgui.ImVec2(80, 15), tostring(item.eat))
         imgui.Text(u8('Молоко в'))
-        tmLib.TextColoredRGB('{AAAAAA}' ..
+        if (item.traceMilk ~= 0) then
+            tmLib.TextColoredRGB('{AAAAAA}' ..
             os.date('%H:%M', item.traceMilk) ..
             '{00FF00}' .. tmLib.remainsToFormLine(item.traceMilk))
+        else
+            imgui.Text(u8 'Нет данных')
+        end
         imgui.Text('==============')
 
         if i == 3 then
@@ -1082,6 +1086,20 @@ function imguiScreen.settings()
 
     if imgui.Button(u8 'Проверить обновление') then
         script.load('moonloader/ToolsMate[Updater].lua')
+    end
+
+    if imgui.Button(u8 'Сбросить данные (всё кроме премий)') then
+        local days = table.copy(state.days)
+        state = table.copy(default_state)
+        state.days = days
+        saveState()
+    end
+
+    if imgui.Button(u8 'Сбросить данные премий') then
+        select_day = {}
+        createNewDay()
+        state.days = table.copy(default_state.days)
+        saveState()
     end
 end
 
@@ -1292,7 +1310,7 @@ local function checkingStatus()
             ------------------
             for _, cow in pairs(state.barn.cows) do
                 local is_trace_milk = false
-                if tmLib.soontime(cow.traceMilk, (state.settings.timeMilkingCows or 0) * 60) then
+                if cow.traceMilk ~= 0 and tmLib.soontime(cow.traceMilk, (state.settings.timeMilkingCows or 0) * 60) then
                     is_trace_milk = true
                 end
 
@@ -1327,13 +1345,7 @@ local function getPriceFruit()
         state.fruits.upd = tmLib.datetime()
         local full_car = state.fruits.plums * 250 + state.fruits.apples * 250 + state.fruits.oranges * 250 +
             state.fruits.bananas * 250
-        local l_text = f('/f Сегодня за полную машину фруктов: %s вирт',
-            tmLib.separatorNumber(full_car))
-        if isFarmer then
-            sampSendChat(l_text)
-        else
-            sampAddChatMessage(l_text, -1)
-        end
+        sampAddChatMessage(f('Сегодня за полную машину фруктов: %s вирт', tmLib.separatorNumber(full_car)), -1)
         saveState()
         return true
     end
@@ -1365,6 +1377,14 @@ local function updateBarn(feeders, cows, warehouse)
             'До получ.молока: (%d+) (ч*)')
         local traceMilkNow = cow.text:match('%[Можно доить%]')
 
+        local traceMilkReusl
+
+        if (not traceMilkNow or #traceMilk < 1) and (not traceMilkNow or #traceMilkNow < 1) then
+            traceMilkReusl = 0
+        else
+            traceMilkReusl = (traceMilkNow and #traceMilkNow > 0) and os.time() or traceMilk
+        end
+
 
         state.barn.cows[cow_number] = {
             stage = cow.text:match('<<%s(%A+)%s%['),
@@ -1373,7 +1393,7 @@ local function updateBarn(feeders, cows, warehouse)
             nutrition = tonumber(cow.text:match('Сытость: (%d+)')),
             traceStage = getMinTimePeriod(old_state_cow and old_state_cow.traceStage or nil, cow.text,
                 'До сл.стадии: (%d+) (ч*)'),
-            traceMilk = (traceMilkNow and #traceMilkNow > 0) and os.time() or traceMilk,
+            traceMilk = traceMilkReusl,
             eat = 0
         }
 
