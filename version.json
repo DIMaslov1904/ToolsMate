@@ -28,7 +28,7 @@
         "descriptions": "Расширение."
     },
     "tm-lib": {
-        "version": "0.2.1",
+        "version": "0.2.2",
         "descriptions": "Все необходимое для работы TM."
     }
 }

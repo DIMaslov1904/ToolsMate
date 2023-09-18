@@ -13,7 +13,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.2.1",
+        version = "0.2.2",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -68,7 +68,7 @@ function lib.remainedtime(reference)
     local days = math.floor(os.difftime(reference, os.time()) / (24 * 60 * 60))
     local hour = math.floor(os.difftime(reference, os.time()) / (60 * 60)) % 60
     local min = math.floor(os.difftime(reference, os.time()) / 60) % 60
-    local sec = os.difftime(os.time(), reference) % 60
+    local sec = os.difftime(reference, os.time()) % 60
     local result = min .. ' мин'
     if hour > 0 then result = hour .. ' часов ' .. result end
     if days > 0 then result = days .. ' дней ' .. result end
