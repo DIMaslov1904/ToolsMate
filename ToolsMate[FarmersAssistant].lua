@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.3")
+script_version("0.5.4")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -1582,9 +1582,9 @@ function sampev.onServerMessage(_, text)
         state.hangar.warehouse = state.hangar.warehouse - count
         state.hangar.seed = state.hangar.seed + count
         saveState()
-    elseif string.find(text, 'скашивание комбайном', 1, true) and string.find(text, 'x2.0 множитель', 1, true) then
+    elseif string.find(text, 'скашивание комбайном', 1, true) and string.find(text, 'множитель', 1, true) then
         state.hangar.speedBooster = os.time() + 2 * 3600
-    elseif string.find(text, 'удобрение кукурузником', 1, true) and string.find(text, 'x2.0 множитель', 1, true) then
+    elseif string.find(text, 'удобрение кукурузником', 1, true) and string.find(text, 'множитель', 1, true) then
         state.hangar.quantityBooster = os.time() + 2 * 3600
     elseif string.find(text, 'л. молока с коровы', 1, true) then
         state.barn.milk = state.barn.milk + tonumber(text:match('(%d+) л. молока с коровы'))
