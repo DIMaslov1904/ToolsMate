@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.4")
+script_version("0.5.5")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -1310,7 +1310,7 @@ local function checkingStatus()
             ------------------
             for _, cow in pairs(state.barn.cows) do
                 local is_trace_milk = false
-                if cow.traceMilk ~= 0 and tmLib.soontime(cow.traceMilk, (state.settings.timeMilkingCows or 0) * 60) then
+                if cow.traceMilk and cow.traceMilk ~= 0 and tmLib.soontime(cow.traceMilk, (state.settings.timeMilkingCows or 0) * 60) then
                     is_trace_milk = true
                 end
 
@@ -1355,6 +1355,7 @@ end
 local function getMinTimePeriod(time1, text, reg)
     if not text and not reg then return os.time() end
     local time2, time2_size = tmLib.getSecondForString(text, reg)
+    if time2 == 0 then return time2 end
     if not time1 then return os.time() + time2 end
     return tmLib.getMinTime(time1, os.time() + time2, time2_size ~= 'h')
 end
@@ -1378,7 +1379,6 @@ local function updateBarn(feeders, cows, warehouse)
         local traceMilkNow = cow.text:match('%[Можно доить%]')
 
         local traceMilkReusl
-
 
         if #(tostring(traceMilk)) < 1 and #traceMilkNow < 1 then
             traceMilkReusl = 0
