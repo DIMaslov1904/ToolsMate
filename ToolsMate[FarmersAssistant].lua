@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.5")
+script_version("0.5.6")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -932,19 +932,23 @@ end
 function imguiScreen.greenhouses()
     imgui.Columns(2, 'trees', false)
     for i, item in pairs(state.greenhouse.trees) do
-        imgui.SetColumnWidth(-1, 300)
-        imgui.Text(u8('№' .. tostring(i) .. ' ' .. item.name))
-        imgui.Text(u8(item.stage .. ' следующая стадия в'))
-        tmLib.TextColoredRGB('{AAAAAA}' ..
-            os.date('%H:%M', item.traceStage) ..
-            '{00FF00}' .. tmLib.remainsToFormLine(item.traceStage))
-        imgui.Text(u8 'Здоровье')
-        imgui.SameLine()
-        imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
-        imgui.Text(u8 'Питание  ')
-        imgui.SameLine()
-        imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
-
+        if item.name then
+            imgui.SetColumnWidth(-1, 300)
+            imgui.Text(u8('№' .. tostring(i) .. ' ' .. item.name))
+            imgui.Text(u8(item.stage .. ' следующая стадия в'))
+            tmLib.TextColoredRGB('{AAAAAA}' ..
+                os.date('%H:%M', item.traceStage) ..
+                '{00FF00}' .. tmLib.remainsToFormLine(item.traceStage))
+            imgui.Text(u8 'Здоровье')
+            imgui.SameLine()
+            imgui.ProgressBar(item.health / 100, imgui.ImVec2(80, 15))
+            imgui.Text(u8 'Питание  ')
+            imgui.SameLine()
+            imgui.ProgressBar(item.nutrition / 100, imgui.ImVec2(80, 15))
+        else 
+            imgui.Text(u8('№' .. tostring(i) .. ' Пусто'))
+        end
+        
         imgui.Text('==============')
 
         if i == 6 then
@@ -1596,9 +1600,11 @@ function sampev.onServerMessage(_, text)
         if state.barn.milk < 0 then state.barn.milk = 0 end
     elseif string.find(text, 'фруктов с дерева на месте', 1, true) then
         local number = tonumber(text:match('фруктов с дерева на месте №(%d)'))
-        local fruit_name_key = treea_get_name(state.greenhouse.trees[number].name)
-        state.greenhouse.fruits[fruit_name_key] = state.greenhouse.fruits[fruit_name_key] +
-            tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
-        saveState()
+        if (state.greenhouse.trees[number]) then
+            local fruit_name_key = treea_get_name(state.greenhouse.trees[number].name)
+            state.greenhouse.fruits[fruit_name_key] = state.greenhouse.fruits[fruit_name_key] +
+                tonumber(text:match('{FBDD7E}(%d+) шт.{FFFFFF} фруктов'))
+            saveState()
+        end
     end
 end
