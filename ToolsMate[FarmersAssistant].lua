@@ -1,6 +1,6 @@
 script_name('ToolsMate[FarmersAssistant]')
 script_author('DIMaslov1904')
-script_version("0.5.6")
+script_version("1.0.0")
 script_url("https://t.me/ToolsMate")
 script_description [[
     В основном бухгалтерская функциональность.
@@ -1279,6 +1279,9 @@ end
 
 local function checkingStatus()
     while true do
+        if tostring(ini.main.farm_number) == '5' then
+            return
+        end
         statuses = {}
         if isFarmer then
             ------------------
