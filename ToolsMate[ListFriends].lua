@@ -400,7 +400,7 @@ end
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
-    EXPORTS.URL_GET_UPDATE = ''
+    EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BListFriends%5D.lua'
     EXPORTS.DEPENDENCIES = { tmLib.setting, ExpansionLua }
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
