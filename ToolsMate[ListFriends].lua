@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('2.0.0')
+script_version('2.0.1')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -411,6 +411,9 @@ end
 local function addFreand()
     local nickname = tmLib.getValueImgut(input_nickname, nil)
     local id = tmLib.getValueImgutNumber(input_id, nil)
+
+    imgui.StrCopy(input_nickname, '')
+    imgui.StrCopy(input_id, '')
 
     if #nickname > 0 or id then
         personFriendList:AddPerson(id and id or nickname)
