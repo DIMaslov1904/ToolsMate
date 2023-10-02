@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('2.0.1')
+script_version('2.1.0')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -524,22 +524,28 @@ local function imguiPersonItem(person)
 
     imgui.SetCursorPos(imgui.ImVec2(150 * SF, 45 * SF))
     imgui.Text(faicons('USER_GROUP'))
+    addons.Hint('##hint_is_script1'..person.name, u8'Наличие у игрока данного скрипта.\nНеобходимо для правильной работы маркера')
     imgui.SameLine()
     imgui.SetCursorPosY(40 * SF)
     if addons.ToggleButton('##Person_isScript_' .. person.name, person.is_script) then
         saveList()
     end
+    addons.Hint('##hint_is_script'..person.name, u8'Наличие у игрока данного скрипта.\nНеобходимо для правильной работы маркера')
+
 
     imgui.SetCursorPos(imgui.ImVec2(230 * SF, 30 * SF))
 
     if addons.StateButton(navigation:Access(person), faicons('LOCATION_DOT'), imgui.ImVec2(35 * SF, 35 * SF)) then
         navigation:GetGPS(person)
     end
+    addons.Hint('##hint_gps'..person.name, u8'Показать положение друга'..(not person.isOnline and u8'\n(Оффлай)' or not navigation:Access(person) and u8'\n(Далеко)' or ''))
+
     imgui.SameLine()
 
     if addons.StateButton(person.isOnline, faicons('COMMENT'), imgui.ImVec2(35 * SF, 35 * SF)) then
         person:sendSMS()
     end
+    addons.Hint('##hint_sms'..person.name, u8'Заготовка для отправки смс'..(not person.isOnline and u8'\n(Оффлай)' or ''))
     imgui.SameLine()
     if imgui.Button(faicons('TRASH'), imgui.ImVec2(35 * SF, 35 * SF)) then
         personFriendList:removePerson(person.name)
@@ -556,6 +562,7 @@ local function imguiPersonItem(person)
             personFriendList:SortingList()
             saveList()
         end
+        addons.Hint('##hint_up'..person.name, u8'Поднять друга в списке')
 
         imgui.SameLine()
         addons.StateButton(person.sorting ~= personFriendList.count, faicons('DOWN'), imgui.ImVec2(20 * SF, 20 * SF))
@@ -564,6 +571,7 @@ local function imguiPersonItem(person)
             personFriendList:SortingList()
             saveList()
         end
+        addons.Hint('##hint_down'..person.name, u8'Отпустить друга в списке')
         imgui.PopStyleVar(1)
         imgui.PopStyleColor(1)
     end
@@ -622,6 +630,7 @@ local function screenMain()
         end
         imgui.SameLine()
     end
+    addons.Hint('##LOCATION_DOT_SLASH', u8'Убрать маркер друга')
     imgui.SetCursorPosX(500 * SF - 200 * SF)
     if imgui.Button(faicons('GEAR')) then
         showSettings = true
