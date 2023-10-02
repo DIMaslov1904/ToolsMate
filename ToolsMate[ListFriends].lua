@@ -17,7 +17,6 @@ local imgui = require 'mimgui'
 local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
 
 
-
 local function downloadLibForUpdater(name, path, url)
     lua_thread.create(function()
         if isUpdater then
@@ -32,22 +31,6 @@ local function downloadLibForUpdater(name, path, url)
     end)
 end
 
-local function downloadFileOrLib(path, url)
-    lua_thread.create(function()
-        downloadUrlToFile(url, path, function(id, status)
-            if status == 58 then
-                return false
-            end
-        end)
-        wait(-1)
-    end)
-end
-
-local function file_exists(name)
-    local f=io.open(getWorkingDirectory() .. name,"r")
-    if f~=nil then io.close(f) return true else return false end
- end
-
 
 local _, tmLib = xpcall(require, function()
     downloadLibForUpdater(
@@ -56,6 +39,22 @@ local _, tmLib = xpcall(require, function()
         'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua'
     )
 end, 'ToolsMate.lib')
+
+
+local function downloadFileOrLib(path, url)
+    tmLib.checkingPath(path)
+    if tmLib.file_exists(path) then return false end
+    lua_thread.create(function()
+        downloadUrlToFile(url, path, function(id, status)
+            if status == 58 then
+                thisScript():reload()
+            end
+        end)
+        wait(-1)
+    end)
+end
+
+
 
 local _, hotkey = xpcall(require, function()
     downloadLibForUpdater(
@@ -86,7 +85,6 @@ local _, faicons = xpcall(require, function()
         '\\lib\\fAwesome6.lua',
         'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/fAwesome6.lua'
     )
-    thisScript():reload()
 end, 'fAwesome6')
 
 local _, mimgui_blur = xpcall(require, function()
@@ -100,11 +98,10 @@ local _, mimgui_blur = xpcall(require, function()
         'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/mimgui_blur/init.lua'
 
     )
-    thisScript():reload()
 end, 'mimgui_blur')
 
 
-if not file_exists('\\ToolsMate\\img\\no_photo_user.png') then
+if not tmLib.file_exists('\\ToolsMate\\img\\no_photo_user.png') then
     downloadFileOrLib(
         '\\ToolsMate\\img\\no_photo_user.png',
         'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/img/no_photo_user.png'

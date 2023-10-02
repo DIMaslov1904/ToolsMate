@@ -530,4 +530,9 @@ function lib.checkingPath(path)
     return true
 end
 
+function lib.file_exists(name)
+    local f=io.open(getWorkingDirectory() .. name,"r")
+    if f~=nil then io.close(f) return true else return false end
+ end
+
 return lib
