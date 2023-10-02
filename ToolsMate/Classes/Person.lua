@@ -5,7 +5,7 @@ PersonVersion = {
     name = 'tm-classe-Person',
     url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/Classes/Person.lua',
     urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-    version = "1.0.0",
+    version = "1.0.1",
     path_script = getWorkingDirectory() .. '\\ToolsMate\\Classes\\Person.lua',
     tag = 'ToolsMate'
 }
@@ -119,6 +119,7 @@ function PersonList:removePerson(name)
     for i, data in pairs(self.list) do
         if data.name == name then
             table.remove(self.list, i)
+            self.count = self.count - 1
             return {status='ok'}
         end
     end
