@@ -20,19 +20,31 @@
         "descriptions": "Добавляет возможность делать заметки прямо в игре с возможность поставить напоминание."
     },
     "ToolsMate[Updater]": {
-        "version": "0.9.6",
+        "version": "0.9.7",
         "descriptions": "Автообновление скриптов."
     },
     "ToolsMate[ListFriends]": {
-        "version": "0.1.0",
+        "version": "1.0.0",
         "descriptions": "Список друзей. Отоброжает онлайн и друзей рядом."
     },
     "tm-expansion": {
-        "version": "0.1.2",
+        "version": "0.2.0",
         "descriptions": "Расширение."
     },
     "tm-lib": {
-        "version": "0.2.3",
+        "version": "0.3.0",
         "descriptions": "Все необходимое для работы TM."
+    },
+    "tm-mimhotkey": {
+        "version": "1.0.0",
+        "descriptions": "Установка хоткеев."
+    },
+    "tm-ADDONS": {
+        "version": "1.0.0",
+        "descriptions": "Аддоны для MIMGUI."
+    },
+    "tm-classe-Person": {
+        "version": "1.0.0",
+        "descriptions": "Класс человека и списка людей."
     }
 }

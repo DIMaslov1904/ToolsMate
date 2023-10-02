@@ -2,7 +2,7 @@ ExpansionLua = {
   name = 'tm-expansion',
   url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/expansion.lua',
   urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-  version = "0.1.2",
+  version = "0.2.0",
   path_script = getWorkingDirectory() .. '\\ToolsMate\\expansion.lua',
   tag = 'ToolsMate'
 }
@@ -65,6 +65,13 @@ function table.filter(arr, func)
       end
   end
   for i = new_index, size_orig do arr[i] = nil end
+end
+
+--Наследование класса
+function Extended (parent)
+  local child = {}
+  setmetatable(child,{__index = parent})
+  return child
 end
 
 -- Улучшенный print

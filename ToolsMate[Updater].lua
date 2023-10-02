@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.6")
+script_version("0.9.7")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -103,7 +103,7 @@ local function checkingPath(path)
         local ok, err, code = os.rename(fullPath, fullPath)
         if code == 2 then
             createDirectory(fullPath)
-        elseif not ok then
+        elseif not ok and not code == 13 then
             print('{77DDE7}' .. path .. '{FFCC00} не установлен!\n {FFCC00}Ошибка создание каталога: ' ..
                 err)
             return false
@@ -302,7 +302,7 @@ local flowRequestCheck = lua_thread.create_suspended(function(name, url)
     downloadUrlToFile(url, directory, function(id, status)
         if status == 6 then end_download = true end
         if status == dlstatus.STATUSEX_ENDDOWNLOAD then
-            print(c({ directory, MESSAGES.download_completed }, ' '))
+            -- print(c({ directory, MESSAGES.download_completed }, ' '))
             loading = false
         end
     end)
@@ -324,7 +324,7 @@ local function check(arg)
     local lib
     for _, v in pairs(state.libs) do if v.name == lib_name then lib = v end end
     lua_thread.create(function()
-        print(MESSAGES.checking_updates)
+        -- print(MESSAGES.checking_updates)
         if show_message then newSampAddChatMessage(c({ script.this.name, MESSAGES.checking_updates }, ' '), color
             .warning) end
 
@@ -345,7 +345,7 @@ local function check(arg)
                 color.errors)
         end
 
-        print(MESSAGES.verification_completed)
+        -- print(MESSAGES.verification_completed)
         if show_message then
             newSampAddChatMessage(c({ script.this.name, MESSAGES.verification_completed }, ' '),
                 color.warning)
@@ -353,7 +353,7 @@ local function check(arg)
 
         if is_updates then
             if state.autoDownload then
-                print(MESSAGES.no_updates)
+                -- print(MESSAGES.no_updates)
             elseif not lib_name then
                 for _, mess in ipairs(MESSAGES.update_instructions) do newSampAddChatMessage(mess, color.warning) end
             else

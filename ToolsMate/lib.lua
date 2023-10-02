@@ -13,7 +13,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.2.3",
+        version = "0.3.0",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -157,6 +157,7 @@ function lib.getIdByNick(nick) -- Получить id по нику игрока
     for i = 0, 1003 do
         if sampIsPlayerConnected(i) and sampGetPlayerNickname(i) == nick then return i end
     end
+    return nil
 end
 
 function lib.getUserColor(id) -- Получить цвет по id игрока
@@ -167,6 +168,16 @@ function lib.getColorAndId(nickname) -- цвет и id в формета [id] или ''
     local id = lib.getIdByNick(nickname)
     local str_id = id and ('[%d]'):format(id) or ''
     return str_id, lib.getUserColor(id)
+end
+
+function lib.sampGetPlayerSkin(id) -- Получение скина по id
+    if not id or not sampIsPlayerConnected(tonumber(id)) and not tonumber(id) == select(2, sampGetPlayerIdByCharHandle(PLAYER_PED)) then return false end
+    local isLocalPlayer = tonumber(id) == select(2, sampGetPlayerIdByCharHandle(PLAYER_PED))
+    local result, handle = sampGetCharHandleBySampPlayerId(tonumber(id))
+    if not result and not isLocalPlayer then return false end
+    local skinid = getCharModel(isLocalPlayer and PLAYER_PED or handle)
+    if skinid < 0 or skinid > 311 then return false end
+    return true, skinid
 end
 
 ------
@@ -490,6 +501,15 @@ function lib.isBackgroundDark(color)
     local r, g, b = color:match('(%x%x)(%x%x)(%x%x)')
     return tonumber(r, 16) * 0.299 + tonumber(g, 16) * 0.587 + tonumber(b, 16) * 0.114 < 180
 end
+
+function lib.parseHexColorToU32(colorHex)
+    local r = tonumber('0x' .. string.sub(colorHex, -8, -7))
+    local g = tonumber('0x' .. string.sub(colorHex, -6, -5))
+    local b = tonumber('0x' .. string.sub(colorHex, -4, -3))
+    local a = tonumber('0x' .. string.sub(colorHex, -2))
+  
+    return  imgui.ColorConvertFloat4ToU32(imgui.ImVec4(g/ 255, b/ 255, a/ 255, 1))
+  end
 
 ------
 -- Работа с файловой системой

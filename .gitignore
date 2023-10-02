@@ -1,2 +1,4 @@
 .vscode
 ToolsMate/Updater/*
+ToolsMate/config/*
+ToolsMate/data/*
