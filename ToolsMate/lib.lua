@@ -13,7 +13,7 @@ local lib = {
         name = 'tm-lib',
         url_script = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua',
         urp_version = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json',
-        version = "0.3.0",
+        version = "0.3.1",
         path_script = getWorkingDirectory() .. '\\ToolsMate\\lib.lua',
         tag = 'ToolsMate'
     }
@@ -187,6 +187,7 @@ function lib.json(directory)
     local class = {}
     function class:Save(tbl)
         if tbl then
+            lib.checkingPath(directory)
             local F = io.open(directory, 'w')
             F:write(encodeJson(tbl) or {})
             F:close()

@@ -1,6 +1,6 @@
 script_name('ToolsMate[Updater]')
 script_author('DIMaslov1904')
-script_version("0.9.7")
+script_version("0.10.0")
 script_url("https://t.me/ToolsMate")
 script_description('Автообновление скриптов.')
 
@@ -45,7 +45,7 @@ end
 
 -- Переменные
 local comamnd = 'updater'
-local config_file_name = c({ getWorkingDirectory(), b('ToolsMate\\Updater\\', script.this.name, '.json') }, '\\')
+local config_file_name = c({ getWorkingDirectory(), b('ToolsMate\\Updater\\Setting', script.this.name, '.json') }, '\\')
 local update_path = getWorkingDirectory() .. '\\ToolsMate\\Updater\\'
 local is_updates = false -- есть есть обновления
 local state = {

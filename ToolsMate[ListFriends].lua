@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('1.0.0')
+script_version('2.0.0')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -16,14 +16,66 @@ local sampev = require 'samp.events'
 local imgui = require 'mimgui'
 local isUpdater, updater = pcall(require, ('ToolsMate[Updater]'))
 
+local libs = {
+    ['ToolsMate.expansion'] = {
+        'tm-expansion',
+        '\\ToolsMate\\expansion.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/expansion.lua'
+    },
+    ['ToolsMate.lib'] = {
+        'tm-lib',
+        '\\ToolsMate\\lib.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua'
+    },
+    ['ToolsMate.mimhotkey'] = {
+        'tm-mimhotkey',
+        '\\ToolsMate\\mimhotkey.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/mimhotkey.lua'
+    },
+    ['ToolsMate.ADDONS'] = {
+        'tm-ADDONS',
+        '\\ToolsMate\\ADDONS.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/ADDONS.lua'
+    },
+    ['ToolsMate.Classes.Person'] = {
+        'tm-classe-Person',
+        '\\ToolsMate\\Classes\\Person.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/Classes/Person.lua'
+    },
+    ['fAwesome6'] = {
+        'fAwesome6',
+        '\\lib\\fAwesome6.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/fAwesome6.lua'
+    },
+    ['mimgui_blur1'] = {
+        'mimgui_blur_lib.dll',
+        '\\lib\\mimgui_blur\\mimgui_blur_lib.dll',
+        'https://github.com/DIMaslov1904/ToolsMate/raw/main/foreign/mimgui_blur/mimgui_blur_lib.dll'
+    },
+    ['mimgui_blur2'] = {
+        'mimgui_blur\\init.lua',
+        '\\lib\\mimgui_blur\\init.lua',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/mimgui_blur/init.lua'
+    },
+    ['no_photo_user.png'] = {
+        'no_photo_user.png',
+        '\\ToolsMate\\img\\no_photo_user.png',
+        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/img/no_photo_user.png'
+    }
+}
 
-local function downloadLibForUpdater(name, path, url)
+
+local not_found = false
+
+local function downloadLibForUpdater(name)
+    not_found = true
     lua_thread.create(function()
         if isUpdater then
+            while updater.download:status() == 'running' do wait(1000) end
             updater.download:run({
-                name = name,
-                path_script = getWorkingDirectory() .. path,
-                url_script = url,
+                name = libs[name][1],
+                path_script = getWorkingDirectory() .. libs[name][2],
+                url_script = libs[name][3],
             })
             while updater.download:status() ~= 'dead' do wait(1000) end
             thisScript():reload()
@@ -31,81 +83,45 @@ local function downloadLibForUpdater(name, path, url)
     end)
 end
 
+local isExpansion = xpcall(require, function() downloadLibForUpdater('ToolsMate.expansion') end, 'ToolsMate.expansion')
 
-local _, tmLib = xpcall(require, function()
-    downloadLibForUpdater(
-        'tm-lib',
-        '\\ToolsMate\\lib.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/lib.lua'
-    )
+local isTmLib, tmLib = xpcall(require, function()
+    not_found = true
+    if isExpansion then downloadLibForUpdater('ToolsMate.lib') end
 end, 'ToolsMate.lib')
 
-
-local function downloadFileOrLib(path, url)
-    tmLib.checkingPath(path)
-    if tmLib.file_exists(path) then return false end
-    lua_thread.create(function()
-        downloadUrlToFile(url, path, function(id, status)
-            if status == 58 then
-                thisScript():reload()
-            end
-        end)
-        wait(-1)
-    end)
-end
-
-
-
-local _, hotkey = xpcall(require, function()
-    downloadLibForUpdater(
-        'tm-mimhotkey',
-        '\\ToolsMate\\mimhotkey.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/mimhotkey.lua'
-    )
+local isHotkey, hotkey = xpcall(require, function()
+    not_found = true
+    if isExpansion then downloadLibForUpdater('ToolsMate.mimhotkey') end
 end, 'ToolsMate.mimhotkey')
 
-local _, addons = xpcall(require, function()
-    downloadLibForUpdater(
-        'tm-ADDONS',
-        '\\ToolsMate\\ADDONS.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/ADDONS.lua'
-    )
+local isAddons, addons = xpcall(require, function()
+    not_found = true
+    if isExpansion then downloadLibForUpdater('ToolsMate.ADDONS') end
 end, 'ToolsMate.ADDONS')
 
 xpcall(require, function()
-    downloadLibForUpdater(
-        'tm-classe-Person',
-        '\\ToolsMate\\Classes\\Person.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/Classes/Person.lua'
-    )
+    not_found = true
+    if isExpansion and isTmLib then downloadLibForUpdater('ToolsMate.Classes.Person') end
 end, 'ToolsMate.Classes.Person')
 
-local _, faicons = xpcall(require, function()
-    downloadFileOrLib(
-        '\\lib\\fAwesome6.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/fAwesome6.lua'
-    )
-end, 'fAwesome6')
+local isFaicons, faicons = xpcall(require, function() downloadLibForUpdater('fAwesome6') end, 'fAwesome6')
 
-local _, mimgui_blur = xpcall(require, function()
-    downloadFileOrLib(
-        'lib\\mimgui_blur\\mimgui_blur_lib.dll',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/mimgui_blur/mimgui_blur_lib.dll'
-
-    )
-    downloadFileOrLib(
-        '\\lib\\mimgui_blur\\init.lua',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/foreign/mimgui_blur/init.lua'
-
-    )
+local isMimgui_blur, mimgui_blur = xpcall(require, function()
+    if isTmLib then
+        if not tmLib.file_exists(libs['mimgui_blur1'][2]) then downloadLibForUpdater('mimgui_blur1') end
+        if not tmLib.file_exists(libs['mimgui_blur2'][2]) then downloadLibForUpdater('mimgui_blur2') end
+    end
 end, 'mimgui_blur')
 
+if isTmLib then
+    if not tmLib.file_exists(libs['no_photo_user.png'][2]) then
+        downloadLibForUpdater('no_photo_user.png')
+    end
+end
 
-if not tmLib.file_exists('\\ToolsMate\\img\\no_photo_user.png') then
-    downloadFileOrLib(
-        '\\ToolsMate\\img\\no_photo_user.png',
-        'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate/img/no_photo_user.png'
-    )
+if not_found then
+    return
 end
 
 
@@ -130,14 +146,16 @@ local SF = sizeX / 1920
 local blurRadius = new.float(4.0)
 local showSettings = false
 local imhandle
-local data_file_name = getWorkingDirectory() .. '/ToolsMate/data/ToolsMate[ListFriends].json'
-local ini_name = '../ToolsMate/config/'..script.this.name .. '.ini'
+local data_file_name = getWorkingDirectory() .. '\\ToolsMate\\data\\ToolsMate[ListFriends].json'
+local ini_name = '../ToolsMate/config/' .. script.this.name .. '.ini'
+
+tmLib.checkingPath(getWorkingDirectory()..  '\\ToolsMate\\config\\' .. script.this.name .. '.ini')
 
 local ini = inicfg.load({
     main = {
         marker = nil,
         checkpoint = nil,
-        position = {},
+        position = '[]',
         person = nil,
         actionLifeSMS = false,
         openMenuBindKeys = '[79]',
@@ -176,15 +194,12 @@ function PersonFriend:Update() --> nil
         local isPed, ped = sampGetCharHandleBySampPlayerId(self.id)
         if isPed then
             local x, y, z = getCharCoordinates(ped)
-            self.position = {x=x, y=y, z=z}
+            self.position = { x = x, y = y, z = z }
         else
             self.position = {}
         end
     end
 end
-
-
-
 
 local PersonFriendList = Extended(PersonList)
 PersonFriendList.child = PersonFriend
@@ -193,10 +208,10 @@ local personFriendList = PersonFriendList:new() -- Основное хранилище друзей
 
 
 function PersonFriendList:AddPerson(arg)
-    if not arg then return {status='error', message='Не передано имя/id!'} end
+    if not arg then return { status = 'error', message = 'Не передано имя/id!' } end
     local name = arg
     if type(arg) == 'number' then
-        if not sampIsPlayerConnected(arg) then return {status='error', message='По данному id игрок не найден!'} end
+        if not sampIsPlayerConnected(arg) then return { status = 'error', message = 'По данному id игрок не найден!' } end
         name = sampGetPlayerNickname(arg)
     end
     self.count = self.count + 1
@@ -204,9 +219,8 @@ function PersonFriendList:AddPerson(arg)
     person.is_script = new.bool()
     person.sorting = self.count
     table.insert(self.list, person)
-    return {status='ok'}
+    return { status = 'ok' }
 end
-
 
 -- Инициализация списка друзей
 function PersonFriendList:Initial(members)
@@ -218,7 +232,7 @@ function PersonFriendList:Initial(members)
         table.insert(personFriendList.list, person)
         self.count = self.count + 1
     end
-    return {status='ok'}
+    return { status = 'ok' }
 end
 
 function PersonFriendList:GetSaveList()
@@ -290,45 +304,44 @@ function Navigation:CheckMarker()
     if self.person and not self.person.isOnline then return true end -- если офф - вырубаем
     local x1, y1, z1 = getCharCoordinates(PLAYER_PED)
     if self.person and self.person.position and self.person.position.x then
-        local dist = getDistanceBetweenCoords3d(self.position.x, self.position.y, self.position.z, self.person.position.x, self.person.position.y, self.person.position.z)
+        local dist = getDistanceBetweenCoords3d(self.position.x, self.position.y, self.position.z, self.person.position
+            .x, self.person.position.y, self.person.position.z)
         if dist > 3 then
             self:SetMarker(self.person.position.x, self.person.position.y, self.person.position.z, self.person)
         end
     elseif not self.person or not self.person.is_script[0] then --Удалаяем маркер
         self:RemoveMarker()
-    elseif not self.actionLifeSMS then  -- пеерекдючаемся на проверку по смс
+    elseif not self.actionLifeSMS then                          -- пеерекдючаемся на проверку по смс
         local l_perosn = self.person
-        lua_thread.create(function ()
+        lua_thread.create(function()
             wait(2000)
             self.person = l_perosn
             self:LifeSMS()
         end)
         return true
     end
-    return getDistanceBetweenCoords3d(self.position.x, self.position.y, self.position.z, x1, y1, z1) < 3 or not doesBlipExist(self.checkpoint)
+    return getDistanceBetweenCoords3d(self.position.x, self.position.y, self.position.z, x1, y1, z1) < 3 or
+        not doesBlipExist(self.checkpoint)
 end
 
 function Navigation:LifeMarker()
-    lua_thread.create(function ()
+    lua_thread.create(function()
         repeat wait(0) until self:CheckMarker()
         self:RemoveMarker()
         addOneOffSound(0, 0, 0, 1149)
     end)
 end
 
-
 function Navigation:SetMarker(x, y, z, person, isSMS)
     self:RemoveMarker(isSMS)
     self.person = person
-    self.position = {x=x, y=y, z=z}
+    self.position = { x = x, y = y, z = z }
     self.checkpoint = addBlipForCoord(x, y, z)
     self.marker = createCheckpoint(2, x, y, z, 1, 1, 1, 3)
     changeBlipColour(self.checkpoint, 0xFFFFFFFF)
     self:UpdateIni()
     self:LifeMarker()
 end
-
-
 
 function Navigation:GetGPS(person)
     person:Update()
@@ -348,8 +361,8 @@ end
 
 function Navigation:SendPositionSMS(name, id)
     local pl_x, pl_y, pl_z = getCharCoordinates(PLAYER_PED)
-    sampSendChat(b('/sms ', id, ' @GPSX=',pl_x, 'Y=',pl_y,'Z=',pl_z))
-    sampAddChatMessage('Данные о местоположении отправлены: {0ABAB5}'..name, -1)
+    sampSendChat(b('/sms ', id, ' @GPSX=', pl_x, 'Y=', pl_y, 'Z=', pl_z))
+    sampAddChatMessage('Данные о местоположении отправлены: {0ABAB5}' .. name, -1)
 end
 
 function Navigation:CheckSMS(message)
@@ -358,15 +371,15 @@ function Navigation:CheckSMS(message)
         self:SendPositionSMS(name, id)
     end
     if message:find('@GPSX=', 1, true) and message:find('Отправитель', 1, true) then
-        local x,y,z = message:match('@GPSX=(.+)Y=(.+)Z=(.+)')
-        self:SetMarker(x,y,z, self.person, true)
+        local x, y, z = message:match('@GPSX=(.+)Y=(.+)Z=(.+)')
+        self:SetMarker(x, y, z, self.person, true)
     end
     return false
 end
 
 function Navigation:LifeSMS()
     self.actionLifeSMS = true
-    lua_thread.create(function ()
+    lua_thread.create(function()
         repeat
             self:GetPositionSMS()
             wait(ini.main.updateFrequency * 1000)
@@ -411,43 +424,44 @@ local fontSize
 imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = nil
     local glyph_ranges = imgui.GetIO().Fonts:GetGlyphRangesCyrillic()
-    fontSize = imgui.GetIO().Fonts:AddFontFromFileTTF(getFolderPath(0x14) .. '\\trebucbd.ttf', 14.0*SF, _, glyph_ranges)
+    fontSize = imgui.GetIO().Fonts:AddFontFromFileTTF(getFolderPath(0x14) .. '\\trebucbd.ttf', 14.0 * SF, _, glyph_ranges)
 
     local config = imgui.ImFontConfig()
     config.MergeMode = true
     config.PixelSnapH = true
     local iconRanges = imgui.new.ImWchar[3](faicons.min_range, faicons.max_range, 0)
-    imgui.GetIO().Fonts:AddFontFromMemoryCompressedBase85TTF(faicons.get_font_data_base85('solid'), 14*SF, config, iconRanges)
+    imgui.GetIO().Fonts:AddFontFromMemoryCompressedBase85TTF(faicons.get_font_data_base85('solid'), 14 * SF, config,
+        iconRanges)
 
 
-    if doesFileExist(getWorkingDirectory()..'\\ToolsMate\\img\\no_photo_user.png') then
+    if doesFileExist(getWorkingDirectory() .. '\\ToolsMate\\img\\no_photo_user.png') then
         imhandle = imgui.CreateTextureFromFile(getWorkingDirectory() .. '\\ToolsMate\\img\\no_photo_user.png')
     end
 
 
     local mc = imgui.ColorConvertU32ToFloat4(0x0ABAB500)
     imgui.SwitchContext()
-    local style = imgui.GetStyle()
-    local colors = style.Colors
-    local clr = imgui.Col
-    local ImVec4 = imgui.ImVec4
-    local ImVec2 = imgui.ImVec2
+    local style                      = imgui.GetStyle()
+    local colors                     = style.Colors
+    local clr                        = imgui.Col
+    local ImVec4                     = imgui.ImVec4
+    local ImVec2                     = imgui.ImVec2
 
-    style.WindowPadding         = ImVec2(15*SF, 15*SF)
-    style.WindowRounding        = 15*SF
-    style.ChildRounding         = 15*SF
-    style.FramePadding          = ImVec2(10*SF, 10*SF)
-    style.FrameRounding         = 6*SF
-    style.ItemSpacing           = ImVec2(10*SF, 5*SF)
-    style.ItemInnerSpacing      = ImVec2(10*SF, 3*SF)
-    style.IndentSpacing         = 18*SF
-    style.ScrollbarSize         = 11*SF
-    style.ScrollbarRounding     = 11*SF
-    style.GrabMinSize           = 13*SF
-    style.GrabRounding          = 7*SF
-    style.TabRounding           = 6*SF
-    style.WindowTitleAlign      = ImVec2(0.5, 0.5)
-    style.ButtonTextAlign       = ImVec2(0.5, 0.5)
+    style.WindowPadding              = ImVec2(15 * SF, 15 * SF)
+    style.WindowRounding             = 15 * SF
+    style.ChildRounding              = 15 * SF
+    style.FramePadding               = ImVec2(10 * SF, 10 * SF)
+    style.FrameRounding              = 6 * SF
+    style.ItemSpacing                = ImVec2(10 * SF, 5 * SF)
+    style.ItemInnerSpacing           = ImVec2(10 * SF, 3 * SF)
+    style.IndentSpacing              = 18 * SF
+    style.ScrollbarSize              = 11 * SF
+    style.ScrollbarRounding          = 11 * SF
+    style.GrabMinSize                = 13 * SF
+    style.GrabRounding               = 7 * SF
+    style.TabRounding                = 6 * SF
+    style.WindowTitleAlign           = ImVec2(0.5, 0.5)
+    style.ButtonTextAlign            = ImVec2(0.5, 0.5)
 
     colors[clr.Text]                 = ImVec4(1.00, 1.00, 1.00, 1.00)
     colors[clr.TextDisabled]         = ImVec4(0.80, 0.80, 0.80, 0.50)
@@ -482,48 +496,49 @@ end)
 
 
 local function imguiPersonItem(person)
-    imgui.BeginChild('Person_'..person.name, imgui.ImVec2(400*SF - 30*SF, 75*SF), true, imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
+    imgui.BeginChild('Person_' .. person.name, imgui.ImVec2(400 * SF - 30 * SF, 75 * SF), true,
+        imgui.WindowFlags.NoScrollbar + imgui.WindowFlags.NoScrollWithMouse)
     local hovered = imgui.IsWindowHovered()
     local dl = imgui.GetWindowDrawList()
-    imgui.SetCursorPos(imgui.ImVec2(40*SF, 37*SF))
+    imgui.SetCursorPos(imgui.ImVec2(40 * SF, 37 * SF))
     local p = imgui.GetCursorScreenPos()
 
-    dl:AddCircleFilled(p, 30*SF, tmLib.parseHexColorToU32(person.clist), 23)
+    dl:AddCircleFilled(p, 30 * SF, tmLib.parseHexColorToU32(person.clist), 23)
 
-    imgui.SetCursorPos(imgui.ImVec2(13*SF, 10*SF))
-    imgui.Image(imhandle, imgui.ImVec2(54*SF, 54*SF))
+    imgui.SetCursorPos(imgui.ImVec2(13 * SF, 10 * SF))
+    imgui.Image(imhandle, imgui.ImVec2(54 * SF, 54 * SF))
 
-    imgui.SetCursorPos(imgui.ImVec2(80*SF, 15*SF))
+    imgui.SetCursorPos(imgui.ImVec2(80 * SF, 15 * SF))
     imgui.Text(person.name)
 
 
     if person.isOnline then
-        imgui.SetCursorPos(imgui.ImVec2(80*SF, 45*SF))
+        imgui.SetCursorPos(imgui.ImVec2(80 * SF, 45 * SF))
         tmLib.TextColoredRGB('{888888}ID')
         imgui.SameLine()
         imgui.Text(tostring(person.id))
     end
 
-    imgui.SetCursorPos(imgui.ImVec2(150*SF, 45*SF))
+    imgui.SetCursorPos(imgui.ImVec2(150 * SF, 45 * SF))
     imgui.Text(faicons('USER_GROUP'))
     imgui.SameLine()
-    imgui.SetCursorPosY(40*SF)
-    if addons.ToggleButton('##Person_isScript_'..person.name, person.is_script) then
+    imgui.SetCursorPosY(40 * SF)
+    if addons.ToggleButton('##Person_isScript_' .. person.name, person.is_script) then
         saveList()
     end
 
-    imgui.SetCursorPos(imgui.ImVec2(230*SF, 30*SF))
+    imgui.SetCursorPos(imgui.ImVec2(230 * SF, 30 * SF))
 
-    if addons.StateButton(navigation:Access(person), faicons('LOCATION_DOT'), imgui.ImVec2(35*SF, 35*SF)) then
+    if addons.StateButton(navigation:Access(person), faicons('LOCATION_DOT'), imgui.ImVec2(35 * SF, 35 * SF)) then
         navigation:GetGPS(person)
     end
     imgui.SameLine()
 
-    if addons.StateButton(person.isOnline, faicons('COMMENT'), imgui.ImVec2(35*SF, 35*SF)) then
+    if addons.StateButton(person.isOnline, faicons('COMMENT'), imgui.ImVec2(35 * SF, 35 * SF)) then
         person:sendSMS()
     end
     imgui.SameLine()
-    if imgui.Button(faicons('TRASH'), imgui.ImVec2(35*SF, 35*SF)) then
+    if imgui.Button(faicons('TRASH'), imgui.ImVec2(35 * SF, 35 * SF)) then
         personFriendList:removePerson(person.name)
         saveList()
     end
@@ -531,18 +546,18 @@ local function imguiPersonItem(person)
     if hovered then
         imgui.PushStyleVarVec2(imgui.StyleVar.FramePadding, imgui.ImVec2(0, 0))
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0, 0, 0, 0))
-        imgui.SetCursorPos(imgui.ImVec2(305*SF, 5*SF))
-         addons.StateButton(person.sorting ~= 1, faicons('UP'), imgui.ImVec2(20*SF, 20*SF))
-         if imgui.IsItemClicked() then
-            person.sorting, personFriendList.list[person.sorting-1].sorting = person.sorting-1, person.sorting
+        imgui.SetCursorPos(imgui.ImVec2(305 * SF, 5 * SF))
+        addons.StateButton(person.sorting ~= 1, faicons('UP'), imgui.ImVec2(20 * SF, 20 * SF))
+        if imgui.IsItemClicked() then
+            person.sorting, personFriendList.list[person.sorting - 1].sorting = person.sorting - 1, person.sorting
             personFriendList:SortingList()
             saveList()
         end
 
         imgui.SameLine()
-        addons.StateButton(person.sorting ~= personFriendList.count, faicons('DOWN'), imgui.ImVec2(20*SF, 20*SF))
+        addons.StateButton(person.sorting ~= personFriendList.count, faicons('DOWN'), imgui.ImVec2(20 * SF, 20 * SF))
         if imgui.IsItemClicked() then
-            person.sorting, personFriendList.list[person.sorting+1].sorting = person.sorting+1, person.sorting
+            person.sorting, personFriendList.list[person.sorting + 1].sorting = person.sorting + 1, person.sorting
             personFriendList:SortingList()
             saveList()
         end
@@ -554,24 +569,24 @@ end
 
 -- Окно добавления друга
 local function screenAddFriends()
-    imgui.SetNextWindowSize(imgui.ImVec2(412*SF, 95*SF), imgui.Cond.FirstUseEver)
+    imgui.SetNextWindowSize(imgui.ImVec2(412 * SF, 95 * SF), imgui.Cond.FirstUseEver)
     if imgui.BeginPopupModal('seach_popup', renderPopupSearch, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove) then
         imgui.Columns(4, 'search', false)
-        imgui.SetColumnWidth(-1, 200*SF)
+        imgui.SetColumnWidth(-1, 200 * SF)
         imgui.Text('Nick_Nmae')
         imgui.NextColumn()
-        imgui.SetColumnWidth(-1, 60*SF)
+        imgui.SetColumnWidth(-1, 60 * SF)
         imgui.Text('id')
         imgui.NextColumn()
-        imgui.SetColumnWidth(-1, 87*SF)
+        imgui.SetColumnWidth(-1, 87 * SF)
         imgui.NextColumn()
         imgui.NextColumn()
-        imgui.PushItemWidth(190*SF)
+        imgui.PushItemWidth(190 * SF)
         imgui.InputText('##input_nickname', input_nickname, tmLib.sizeof(input_nickname))
         imgui.NextColumn()
 
 
-        imgui.PushItemWidth(50*SF)
+        imgui.PushItemWidth(50 * SF)
         if imgui.InputText('##input_id', input_id, tmLib.sizeof(input_id)) then
             imgui.StrCopy(input_id, getValidId(ffi.string(input_id)))
         end
@@ -583,7 +598,7 @@ local function screenAddFriends()
         end
         imgui.NextColumn()
 
-        if imgui.Button(faicons('XMARK'), imgui.ImVec2(35*SF, 35*SF)) then
+        if imgui.Button(faicons('XMARK'), imgui.ImVec2(35 * SF, 35 * SF)) then
             renderPopupSearch[0] = false
         end
     end
@@ -592,30 +607,30 @@ end
 
 -- Основное окно
 local function screenMain()
-    if imgui.Button(faicons('USER_PLUS') .. u8' Добавить друга') then
+    if imgui.Button(faicons('USER_PLUS') .. u8 ' Добавить друга') then
         renderPopupSearch[0] = true
         imgui.OpenPopup('seach_popup')
     end
     imgui.SameLine()
     if navigation.marker or navigation.actionLifeSMS then
-        imgui.SetCursorPosX(500*SF - 250*SF)
+        imgui.SetCursorPosX(500 * SF - 250 * SF)
         if imgui.Button(faicons('LOCATION_DOT_SLASH')) then
             navigation:RemoveMarker()
         end
         imgui.SameLine()
-    end    
-    imgui.SetCursorPosX(500*SF - 200*SF)
+    end
+    imgui.SetCursorPosX(500 * SF - 200 * SF)
     if imgui.Button(faicons('GEAR')) then
         showSettings = true
     end
     imgui.SameLine()
-    imgui.SetCursorPosX(500*SF - 150*SF)
-    if imgui.Button(faicons('XMARK'), imgui.ImVec2(35*SF, 35*SF)) then
+    imgui.SetCursorPosX(500 * SF - 150 * SF)
+    if imgui.Button(faicons('XMARK'), imgui.ImVec2(35 * SF, 35 * SF)) then
         renderWindow[0] = false
     end
 
-    imgui.SetCursorPosX(320*SF)
-    tmLib.TextColoredRGB(b('{888888}online ',personFriendList.onlineCount,'/',personFriendList.count ))
+    imgui.SetCursorPosX(320 * SF)
+    tmLib.TextColoredRGB(b('{888888}online ', personFriendList.onlineCount, '/', personFriendList.count))
 
     for _, person in pairs(personFriendList.list) do
         imguiPersonItem(person)
@@ -626,33 +641,33 @@ end
 
 -- Окно настроек
 local function screenSettings()
-    imgui.SetCursorPosX(500*SF - 200*SF)
+    imgui.SetCursorPosX(500 * SF - 200 * SF)
     if imgui.Button(faicons('LEFT_LONG')) then
         showSettings = false
     end
     imgui.SameLine()
-    imgui.SetCursorPosX(500*SF - 150*SF)
-    if imgui.Button(faicons('XMARK'), imgui.ImVec2(35*SF, 35*SF)) then
+    imgui.SetCursorPosX(500 * SF - 150 * SF)
+    if imgui.Button(faicons('XMARK'), imgui.ImVec2(35 * SF, 35 * SF)) then
         renderWindow[0] = false
     end
 
-    imgui.SetCursorPosY(65*SF)
-    imgui.Text(u8'Сочетание для открытия меню')
+    imgui.SetCursorPosY(65 * SF)
+    imgui.Text(u8 'Сочетание для открытия меню')
     imgui.SameLine()
-    imgui.SetCursorPos(imgui.ImVec2(230*SF, 55*SF))
+    imgui.SetCursorPos(imgui.ImVec2(230 * SF, 55 * SF))
     local newOpenMenuBindKeys = hotkey.KeyEditor('openMenuBind')
     if newOpenMenuBindKeys then
         ini.main.openMenuBindKeys = encodeJson(newOpenMenuBindKeys)
         saveIni()
     end
 
-    imgui.SetCursorPosY(105*SF)
-    imgui.Text(u8'Частота обновления по смс (сек)')
+    imgui.SetCursorPosY(105 * SF)
+    imgui.Text(u8 'Частота обновления по смс (сек)')
     imgui.SameLine()
 
 
-    imgui.SetCursorPos(imgui.ImVec2(230*SF, 95*SF))
-    imgui.PushItemWidth(50*SF)
+    imgui.SetCursorPos(imgui.ImVec2(230 * SF, 95 * SF))
+    imgui.PushItemWidth(50 * SF)
     if imgui.InputText("##updateFrequency", updateFrequency, tmLib.sizeof(updateFrequency)) then
         local updateFrequency_str = string.match(ffi.string(updateFrequency), '[%d]*')
         imgui.StrCopy(updateFrequency, updateFrequency_str)
@@ -673,15 +688,16 @@ local imgui_menu = imgui.OnFrame(
     function(self)
         imgui.PushFont(fontSize)
         imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2), imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-            imgui.SetNextWindowSize(imgui.ImVec2(400*SF, 500*SF), imgui.Cond.Always)
-            imgui.Begin('Okno', renderWindow, imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoScrollbar)
-            mimgui_blur.apply(imgui.GetWindowDrawList(), blurRadius[0])
-                if showSettings then
-                    screenSettings()
-                else
-                    screenMain()
-                end
-            imgui.End()
+        imgui.SetNextWindowSize(imgui.ImVec2(400 * SF, 500 * SF), imgui.Cond.Always)
+        imgui.Begin('Okno', renderWindow,
+            imgui.WindowFlags.NoResize + imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoScrollbar)
+        mimgui_blur.apply(imgui.GetWindowDrawList(), blurRadius[0])
+        if showSettings then
+            screenSettings()
+        else
+            screenMain()
+        end
+        imgui.End()
         imgui.PopFont()
     end
 )
@@ -701,10 +717,10 @@ local imgui_online_members = imgui.OnFrame(
 
         for _, person in pairs(personFriendList.listOnline) do
             local isNearby = person.position and person.position.x
-            tmLib.TextColoredRGB(b(person.name, ' [', person.id,']'))
+            tmLib.TextColoredRGB(b(person.name, ' [', person.id, ']'))
             if isNearby then
                 imgui.SameLine()
-                imgui.TextColored(imgui.ImVec4(0.10, 0.73, 0.71, 1.0 ), faicons('LOCATION_CROSSHAIRS'))
+                imgui.TextColored(imgui.ImVec4(0.10, 0.73, 0.71, 1.0), faicons('LOCATION_CROSSHAIRS'))
             end
         end
         imgui.End()
@@ -742,8 +758,9 @@ end
 function main()
     EXPORTS.TAG_ADDONS = 'ToolsMate'
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
-    EXPORTS.URL_GET_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BListFriends%5D.lua'
-    EXPORTS.DEPENDENCIES = { tmLib.setting, ExpansionLua, hotkey.setting, addons.setting  }
+    EXPORTS.URL_GET_UPDATE =
+    'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BListFriends%5D.lua'
+    EXPORTS.DEPENDENCIES = { tmLib.setting, ExpansionLua, hotkey.setting, addons.setting }
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
@@ -756,8 +773,6 @@ function main()
         personFriendList:Update()
     end
 end
-
-
 
 function sampev.onServerMessage(_, text)
     if text:find('@GPS', 1, true) then
