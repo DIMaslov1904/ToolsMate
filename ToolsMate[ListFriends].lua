@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('2.2.0')
+script_version('2.2.1')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -778,7 +778,7 @@ function main()
     EXPORTS.URL_CHECK_UPDATE = 'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/version.json'
     EXPORTS.URL_GET_UPDATE =
     'https://raw.githubusercontent.com/DIMaslov1904/ToolsMate/main/ToolsMate%5BListFriends%5D.lua'
-    EXPORTS.DEPENDENCIES = { tmLib.setting, ExpansionLua, hotkey.setting, addons.setting }
+    EXPORTS.DEPENDENCIES = { tmLib.setting, ExpansionLua, hotkey.setting, addons.setting,  PersonVersion}
 
     if not isSampLoaded() or not isSampfuncsLoaded() then return end
     while not isSampAvailable() do wait(100) end
