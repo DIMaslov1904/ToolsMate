@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('2.1.0')
+script_version('2.2.0')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -690,6 +690,11 @@ local function screenSettings()
         end
         saveIni()
     end
+
+
+
+    imgui.SetCursorPosY(500 * SF - 50)
+    tmLib.CenterTextColoredRGB(b(script.this.name,  ' v-', script.this.version, '\nby DIMaslov1904'))
 end
 
 
@@ -744,7 +749,7 @@ local imgui_online_members = imgui.OnFrame(
 
 
 local toggleMenu = function()
-    if not sampIsCursorActive() or renderWindow[0] then
+    if not renderPopupSearch[0] and (not sampIsCursorActive() or renderWindow[0]) then
         renderWindow[0] = not renderWindow[0]
     end
 end
@@ -758,6 +763,7 @@ local function run()
         if wparam == vkeys.VK_ESCAPE and renderWindow[0] then
             consumeWindowMessage(true, true)
             renderWindow[0] = false
+            renderPopupSearch[0] = false
         end
     end)
 
