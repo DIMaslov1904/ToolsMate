@@ -1,6 +1,6 @@
 script_name('ToolsMate[ListFriends]')
 script_author('DIMaslov1904')
-script_version('2.2.1')
+script_version('2.2.2')
 script_url('https://t.me/ToolsMate')
 script_description('Список друзей. Отоброжает онлайн и друзей рядом')
 
@@ -189,7 +189,7 @@ function PersonFriend:sendSMS(arg_auto_send, art_text)
 end
 
 function PersonFriend:Update() --> nil
-    Person:Update(self)
+    Person.Update(self)
     if self.id then
         local isPed, ped = sampGetCharHandleBySampPlayerId(self.id)
         if isPed then
